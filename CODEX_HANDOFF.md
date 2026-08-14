@@ -1,6 +1,6 @@
-# Vibe Mission Control — Codex 接入说明
+# Obsidian Codex Workbench — Codex 接入说明
 
-这是一个面向本机 Obsidian Vault 的工作台源码包。开始前请先阅读 `README.md`、`docs/VAULT_CONTRACT.md` 和 `docs/handoff.md`。
+这是一个面向本机 Obsidian Vault 的公开工作台、Starter Vault 与 Skill 发行。开始前请先阅读 `AGENTS.md`、`README.md`、`00_从这里开始.md`、`docs/VAULT_CONTRACT.md` 和 `docs/handoff.md`。
 
 ## 必须遵守的接入顺序
 
@@ -19,4 +19,4 @@
 
 ## 交付检查
 
-最终交付前运行 `pnpm package:codex`。生成的 ZIP 和同名 `.sha256` 位于 `.workbench-data/releases`；发送前验证 SHA-256，并确认 ZIP 内没有 `.git`、`.env.local`、依赖目录、构建目录或任何真实 Vault 数据。
+从干净提交创建公开交付物时运行 `pnpm release:build`。生成的两个 ZIP 和 `SHA256SUMS.txt` 位于 `.workbench-data/releases`；发送前验证 SHA-256，并确认 ZIP 内没有 `.git`、`.env.local`、依赖目录、构建目录或任何真实 Vault 数据。

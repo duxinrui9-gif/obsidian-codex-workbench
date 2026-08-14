@@ -1,20 +1,8 @@
-# Changelog
+# Documentation History
 
-## 2026-08-14 — Codex 接入包
+The authoritative public release history is maintained in the repository-root [CHANGELOG.md](../CHANGELOG.md).
 
-- 增加集中式 Vault Profile、可配置目录/字段映射、时区与只读写入开关。
-- 增加不泄露正文的 Vault 盘点工具、接入契约、Codex handoff 和可重复源码 ZIP 打包命令。
+## 2026-08-14 — Public baseline
 
-## 2026-08-14 — 稳定性与可用性收尾
-
-- 新增单次工作台快照、单文件 Vault 降级提示和报告索引问题清单。
-- 项目看板增加“已结束”视图；归档项目展示完成与取消任务并标记残留活跃事项。
-- 写入接口改为运行时 JSON 解析，拒绝畸形请求与不存在的日历日期。
-- 完善任务/报告标签键盘操作、状态看板横向滚动控制及长列表渲染隔离。
-
-## 2026-08-13
-
-- `97a4432`：建立本地优先的 Vibe Mission Control MVP，提供 Vault 只读报告视图和安全任务写入。
-- `fe2dcfb`：移除首页无状态含义的面板斜线装饰。
-- `c476506`：接入赛博 HUD 图标系统与主题感知的 PNG mask 图标。
-- `091c935`：结转任务在填写日期时回到“待执行”，留空时清除排期并进入 Backlog。
+- `v0.1.0` established the public baseline for the local Mission Control application, four Codex Skills, and the unified Starter Vault.
+- Earlier pre-public implementation history is intentionally not repeated here: its commit identifiers do not belong to this repository's clean public history.
