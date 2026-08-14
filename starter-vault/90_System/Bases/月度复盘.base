@@ -1,0 +1,37 @@
+filters:
+  and:
+    - file.inFolder("05_Review/Monthly")
+    - type == "review"
+    - review_period == "monthly"
+properties:
+  file.name:
+    displayName: 月份
+  review_kind:
+    displayName: 类型
+  period_start:
+    displayName: 开始
+  period_end:
+    displayName: 结束
+  status:
+    displayName: 状态
+  projects:
+    displayName: 项目
+  updated:
+    displayName: 更新日期
+views:
+  - type: table
+    name: 月报
+    filters:
+      and:
+        - review_kind == "report"
+    order:
+      - month_key
+      - file.name
+  - type: table
+    name: 月度规划
+    filters:
+      and:
+        - review_kind == "plan"
+    order:
+      - month_key
+      - file.name

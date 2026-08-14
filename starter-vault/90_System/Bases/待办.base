@@ -1,0 +1,72 @@
+filters:
+  and:
+    - file.inFolder("05_Review/Actions")
+    - type == "action"
+properties:
+  file.name:
+    displayName: 事项
+  action_id:
+    displayName: ID
+  action_state:
+    displayName: 进度
+  action_area:
+    displayName: 范围
+  projects:
+    displayName: 项目
+  next_action:
+    displayName: 下一动作
+  scheduled_for:
+    displayName: 计划日期
+  review_on:
+    displayName: 复查日期
+  last_activity:
+    displayName: 最近活动
+  carryover_count:
+    displayName: 结转次数
+  updated:
+    displayName: 更新日期
+views:
+  - type: table
+    name: 今日执行
+    filters:
+      and:
+        - status == "active"
+        - or:
+            - action_state == "ready"
+            - action_state == "in_progress"
+        - scheduled_for <= today()
+    order:
+      - projects
+      - scheduled_for
+      - file.name
+  - type: table
+    name: 待复查
+    filters:
+      and:
+        - status == "active"
+        - action_state == "waiting"
+        - review_on <= today()
+    order:
+      - review_on
+      - projects
+      - file.name
+  - type: table
+    name: 全部未关闭
+    filters:
+      and:
+        - status == "active"
+    order:
+      - action_state
+      - projects
+      - scheduled_for
+      - review_on
+      - file.name
+  - type: table
+    name: 已关闭
+    filters:
+      and:
+        - status == "archived"
+    order:
+      - closed_at
+      - projects
+      - file.name

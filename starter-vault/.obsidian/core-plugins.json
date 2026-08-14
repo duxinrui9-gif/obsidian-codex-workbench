@@ -1,0 +1,14 @@
+{
+  "file-explorer": true,
+  "global-search": true,
+  "backlink": true,
+  "properties": true,
+  "daily-notes": true,
+  "templates": true,
+  "command-palette": true,
+  "outline": true,
+  "file-recovery": true,
+  "bases": true,
+  "sync": false,
+  "publish": false
+}

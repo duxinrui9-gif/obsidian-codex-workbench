@@ -1,0 +1,4 @@
+interface:
+  display_name: "Obsidian 知识库体检"
+  short_description: "检查 v4 覆盖、学习稿门禁、视觉、哈希与方法结构"
+  default_prompt: "使用 $obsidian-health-check 以 report 模式检查这个 Vault 的 v4 覆盖、链接、哈希与结构契约；不要修改文件。"

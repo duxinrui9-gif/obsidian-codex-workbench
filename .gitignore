@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.env.local
+.workbench-data/
+.imports/
+.playwright-cli/
+coverage/
+*.log
+*.tsbuildinfo
+.DS_Store
+
+__pycache__/
+*.py[cod]

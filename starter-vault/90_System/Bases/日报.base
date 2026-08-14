@@ -1,0 +1,57 @@
+filters:
+  and:
+    - file.inFolder("05_Review/Daily")
+    - type == "review"
+    - review_period == "daily"
+properties:
+  file.name:
+    displayName: 日期
+  file.folder:
+    displayName: 目录
+  daily_kind:
+    displayName: 类型
+  include_in_rollup:
+    displayName: 用于汇总
+  month_key:
+    displayName: 月份
+  week_key:
+    displayName: 周次
+  status:
+    displayName: 状态
+  projects:
+    displayName: 项目
+  action_items:
+    displayName: 待办
+  updated:
+    displayName: 更新日期
+views:
+  - type: table
+    name: 日报
+    filters:
+      and:
+        - daily_kind == "report"
+    order:
+      - file.folder
+      - file.name
+      - projects
+      - updated
+  - type: table
+    name: 规划
+    filters:
+      and:
+        - daily_kind == "plan"
+    order:
+      - file.folder
+      - file.name
+      - projects
+      - updated
+  - type: table
+    name: 可用于汇总
+    filters:
+      and:
+        - daily_kind == "report"
+        - include_in_rollup == true
+    order:
+      - month_key
+      - week_key
+      - file.name

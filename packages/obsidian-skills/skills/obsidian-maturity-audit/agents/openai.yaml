@@ -1,0 +1,4 @@
+interface:
+  display_name: "Obsidian 成熟度审计"
+  short_description: "按可用 v4 证据、家族与实践记录审计成熟度和就绪度"
+  default_prompt: "使用 $obsidian-maturity-audit 审查知识卡的证据独立性、实践验证、成熟度与晋级条件；不要默认修改卡片。"

@@ -1,0 +1,129 @@
+{
+  "package": "obsidian-knowledge-skills",
+  "version": "0.1.0",
+  "distribution": "public",
+  "license": "MIT",
+  "python": ">=3.9",
+  "optional_dependencies": [
+    {
+      "package": "pypdf",
+      "purpose": "PDF page-count and structural validation"
+    }
+  ],
+  "skills": [
+    "obsidian-ingest",
+    "obsidian-query",
+    "obsidian-health-check",
+    "obsidian-maturity-audit"
+  ],
+  "files": [
+    {
+      "path": "START-HERE.md",
+      "sha256": "0920bf1c6780cd8ac828d935a9c30f3bfdcff42d067cb1a261d186371ee2e80d"
+    },
+    {
+      "path": "install.sh",
+      "sha256": "28c9cd12d1ed2a448cde32769ec636e7c40da00d5efc2fbe403e0b34deade7df"
+    },
+    {
+      "path": "refresh_manifest.py",
+      "sha256": "07dd13291e1bdcb3b80b19763856c83bcb64f15c6d3faca84025a3a7fbf01e70"
+    },
+    {
+      "path": "requirements-optional.txt",
+      "sha256": "7eec2acb24ba02b22404b3ab3846c179c92aa4135c6262bc98c83c286e7e145a"
+    },
+    {
+      "path": "skills/obsidian-health-check/SKILL.md",
+      "sha256": "3f9dc08d1522712f0756281a79254224f9c2d002b52bb8930f2f1e1ff30b2968"
+    },
+    {
+      "path": "skills/obsidian-health-check/agents/openai.yaml",
+      "sha256": "15a9361fc2b92c5f55885b69ece86ba2eacc07e006edc45cbb1a9a428b9a4496"
+    },
+    {
+      "path": "skills/obsidian-health-check/references/health-contract.md",
+      "sha256": "6e6012c9a40d5f3a5caeb998c3086782df370f3e07dce6ab56ef61988c24e5d8"
+    },
+    {
+      "path": "skills/obsidian-health-check/scripts/audit_vault.py",
+      "sha256": "432bb9770dacfe29c2f1d3e263dee0a37bc10508bdf4ef93d895fe7b436a9da3"
+    },
+    {
+      "path": "skills/obsidian-health-check/scripts/test_audit_vault.py",
+      "sha256": "37cc0c4a8b8c9c2483d22a1fe88bdfab3eda778e5f59a3bfa92d0b7be42b5039"
+    },
+    {
+      "path": "skills/obsidian-ingest/SKILL.md",
+      "sha256": "c19997aa42349e2eaf71f4332fba9b1477112f3ec081917763e6d1169caf8701"
+    },
+    {
+      "path": "skills/obsidian-ingest/agents/openai.yaml",
+      "sha256": "1ae14f7057209711a2282bf145ca8bc971693b4f9bd9a539b77964d1686d211a"
+    },
+    {
+      "path": "skills/obsidian-ingest/references/ingest-contract.md",
+      "sha256": "ffab4943a1f5f7846e8795e35f1d8d2c963f4f763a4ab83739a10cb1935a5dfb"
+    },
+    {
+      "path": "skills/obsidian-ingest/references/learning-semantic-compilation.md",
+      "sha256": "34067b8f27f49a5df30cd9dbf15d78281cb793ec601723744b760c142143e8df"
+    },
+    {
+      "path": "skills/obsidian-ingest/references/reader-export.md",
+      "sha256": "4815843d8700c1fdde2b826b5f30bc7e5bf26bb1bc0b9657d0fc3dc9493c9afb"
+    },
+    {
+      "path": "skills/obsidian-ingest/references/source-adapters.md",
+      "sha256": "0c6d8fc4bd3470d994678b0757dea3b23e42b76ecdafa916beea9ee516036a79"
+    },
+    {
+      "path": "skills/obsidian-ingest/references/transcript-cleaning.md",
+      "sha256": "febf2b2b10403164d6a5869f9f165f57028cb33eec9ee9ead1d0130f7b1430dc"
+    },
+    {
+      "path": "skills/obsidian-ingest/scripts/test_validate_reader_export.py",
+      "sha256": "891a3aabfe6902e189a73d90e326c23a1dfbde1d70855131c7be64d335b229c2"
+    },
+    {
+      "path": "skills/obsidian-ingest/scripts/test_validate_source_coverage.py",
+      "sha256": "4711ac1541206a2029129a40288ff2049e4e625b1005f3145b8b812fabdd0d1f"
+    },
+    {
+      "path": "skills/obsidian-ingest/scripts/validate_reader_export.py",
+      "sha256": "4de19c98e69824220830e77db75d54bdeafa29c971e8ebf9dc403c47b9fcf5be"
+    },
+    {
+      "path": "skills/obsidian-ingest/scripts/validate_source_coverage.py",
+      "sha256": "e25c110c95b8316df645067d0072cfc0347d40444f146fade6d04c8c7c1998e6"
+    },
+    {
+      "path": "skills/obsidian-maturity-audit/SKILL.md",
+      "sha256": "e6481e91b4a4d56372925e85b9d3e0df23a7adf55f037d305cf11396e1c417d2"
+    },
+    {
+      "path": "skills/obsidian-maturity-audit/agents/openai.yaml",
+      "sha256": "f7716eb4d67565d3740e6425613ddf3d9e55b0cbeda4304b8f7545d3ada9e24e"
+    },
+    {
+      "path": "skills/obsidian-maturity-audit/references/maturity-contract.md",
+      "sha256": "056447266036edb6b7d2bd57c0e66a3f0b753427179bab82dd4839643221d9e3"
+    },
+    {
+      "path": "skills/obsidian-query/SKILL.md",
+      "sha256": "9a77066976a603683d037c3c1e989dc71a217f7682ebc911013a49f911fe5268"
+    },
+    {
+      "path": "skills/obsidian-query/agents/openai.yaml",
+      "sha256": "125cc7700bd504fe01baf7f0c3b8064c7bb83252889a13fc3a0c2411333e64fe"
+    },
+    {
+      "path": "skills/obsidian-query/references/query-contract.md",
+      "sha256": "7973255d75d35ae7a5ff9c6721b579172f85907dc65e2b9b96e3213baac52247"
+    },
+    {
+      "path": "verify.py",
+      "sha256": "33fdea5b202f373811a6718dff927ec313c666bc7a74f451390687275613ac4b"
+    }
+  ]
+}

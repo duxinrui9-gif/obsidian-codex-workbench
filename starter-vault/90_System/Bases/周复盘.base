@@ -1,0 +1,39 @@
+filters:
+  and:
+    - file.inFolder("05_Review/Weekly")
+    - type == "review"
+    - review_period == "weekly"
+properties:
+  file.name:
+    displayName: 周次
+  review_kind:
+    displayName: 类型
+  period_start:
+    displayName: 开始
+  period_end:
+    displayName: 结束
+  status:
+    displayName: 状态
+  projects:
+    displayName: 项目
+  action_items:
+    displayName: 待办
+  updated:
+    displayName: 更新日期
+views:
+  - type: table
+    name: 周报
+    filters:
+      and:
+        - review_kind == "report"
+    order:
+      - week_key
+      - file.name
+  - type: table
+    name: 周规划
+    filters:
+      and:
+        - review_kind == "plan"
+    order:
+      - week_key
+      - file.name

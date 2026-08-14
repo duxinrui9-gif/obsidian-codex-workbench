@@ -1,0 +1,4 @@
+interface:
+  display_name: "Obsidian 知识库问答"
+  short_description: "从已验收的 v4 内容块和可执行方法回答问题"
+  default_prompt: "使用 $obsidian-query 回答这个问题，并区分直接证据、推断、项目证据与未知项；不要默认保存记录。"
