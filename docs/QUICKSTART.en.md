@@ -3,7 +3,7 @@
 ## Requirements
 
 - Desktop Obsidian with Templates, Daily Notes, Properties, and Bases.
-- Node.js 20.9 or newer and pnpm 11.
+- Node.js 22.13 or newer and pnpm 11.
 - A local Codex installation if you want to install the bundled Skills.
 
 ## Start safely

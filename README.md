@@ -43,7 +43,7 @@ python3 packages/obsidian-skills/verify.py
 
 ## English quick start
 
-1. Install Node 20.9+ and pnpm 11.
+1. Install Node 22.13+ and pnpm 11.
 2. Run `pnpm install --frozen-lockfile`.
 3. Copy `.env.example` to `.env.local`, set your Vault path, and keep writes disabled.
 4. Run `pnpm dev`; the server listens only on `127.0.0.1`.
