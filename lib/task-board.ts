@@ -1,11 +1,16 @@
 import type { ActionRecord } from "@/lib/types";
 
-export type TaskDateKind = "start" | "scheduled" | "due" | "review";
+export type TaskDateKind = "start" | "window" | "scheduled" | "due" | "review";
 
 export interface TaskDateEntry {
   action: ActionRecord;
   date: string;
-  kind: TaskDateKind;
+  kinds: TaskDateKind[];
+}
+
+export interface TaskDateProjectGroup {
+  project: string;
+  entries: TaskDateEntry[];
 }
 
 export interface ProjectActionGroup {
@@ -25,13 +30,57 @@ export function actionProject(action: ActionRecord): string {
   return value.replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].split("/").pop() ?? value;
 }
 
-export function taskDateEntries(actions: ActionRecord[]): TaskDateEntry[] {
-  return actions.flatMap((action) => [
-    ...(action.startOn ? [{ action, date: action.startOn, kind: "start" as const }] : []),
-    ...(action.scheduledFor ? [{ action, date: action.scheduledFor, kind: "scheduled" as const }] : []),
-    ...(action.dueOn ? [{ action, date: action.dueOn, kind: "due" as const }] : []),
-    ...(action.reviewOn ? [{ action, date: action.reviewOn, kind: "review" as const }] : []),
-  ]).sort((left, right) => left.date.localeCompare(right.date) || left.action.updated.localeCompare(right.action.updated));
+export const TASK_DATE_KINDS: TaskDateKind[] = ["start", "window", "scheduled", "due", "review"];
+
+function entryKinds(action: ActionRecord, date: string): TaskDateKind[] {
+  const kinds: TaskDateKind[] = [];
+  if (date === action.startOn) kinds.push("start");
+  if (action.startOn && action.dueOn && date > action.startOn && date < action.dueOn) kinds.push("window");
+  if (date === action.scheduledFor) kinds.push("scheduled");
+  if (date === action.dueOn) kinds.push("due");
+  if (date === action.reviewOn) kinds.push("review");
+  return kinds;
+}
+
+export function taskDateEntries(actions: ActionRecord[], dates: readonly string[]): TaskDateEntry[] {
+  return dates.flatMap((date) => actions.flatMap((action) => {
+    const kinds = entryKinds(action, date);
+    return kinds.length ? [{ action, date, kinds }] : [];
+  })).sort((left, right) => left.date.localeCompare(right.date) || left.action.updated.localeCompare(right.action.updated) || left.action.title.localeCompare(right.action.title, "zh-Hans-CN"));
+}
+
+function taskDatePriority(entry: TaskDateEntry, today: string): number {
+  if (entry.kinds.includes("due") || (entry.action.dueOn && entry.action.dueOn < today)) return 0;
+  if (entry.action.actionState === "in_progress") return 1;
+  if (entry.kinds.includes("scheduled") || entry.kinds.includes("review")) return 2;
+  if (entry.kinds.includes("start")) return 3;
+  return 4;
+}
+
+function compareTaskDateEntries(left: TaskDateEntry, right: TaskDateEntry, today: string): number {
+  const priority = taskDatePriority(left, today) - taskDatePriority(right, today);
+  if (priority) return priority;
+  const due = (left.action.dueOn || "9999-12-31").localeCompare(right.action.dueOn || "9999-12-31");
+  return due || right.action.updated.localeCompare(left.action.updated) || left.action.title.localeCompare(right.action.title, "zh-Hans-CN");
+}
+
+export function groupTaskDateEntries(entries: TaskDateEntry[], today: string): TaskDateProjectGroup[] {
+  const groups = new Map<string, TaskDateEntry[]>();
+  for (const entry of entries) {
+    const project = actionProject(entry.action);
+    groups.set(project, [...(groups.get(project) ?? []), entry]);
+  }
+  return [...groups.entries()].map(([project, projectEntries]) => ({ project, entries: [...projectEntries].sort((left, right) => compareTaskDateEntries(left, right, today)) })).sort((left, right) => compareTaskDateEntries(left.entries[0], right.entries[0], today) || left.project.localeCompare(right.project, "zh-Hans-CN"));
+}
+
+export function preferredTaskCalendarDate(availableDates: readonly string[], today: string, current = ""): string {
+  if (current && availableDates.includes(current)) return current;
+  if (availableDates.includes(today)) return today;
+  return [...availableDates].sort((left, right) => {
+    const leftDistance = Math.abs(Date.parse(`${left}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`));
+    const rightDistance = Math.abs(Date.parse(`${right}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`));
+    return leftDistance - rightDistance || Number(left < today) - Number(right < today) || left.localeCompare(right);
+  })[0] ?? "";
 }
 
 export function deliverySignals(actions: ActionRecord[], today: string): DeliverySignals {

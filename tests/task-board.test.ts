@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliverySignals, groupArchivedActions, sortProjectActions, taskDateEntries, taskDateSummary } from "../lib/task-board";
+import { deliverySignals, groupArchivedActions, groupTaskDateEntries, preferredTaskCalendarDate, sortProjectActions, taskDateEntries, taskDateSummary } from "../lib/task-board";
 import type { ActionRecord } from "../lib/types";
 
 function action(overrides: Partial<ActionRecord>): ActionRecord {
@@ -9,14 +9,46 @@ function action(overrides: Partial<ActionRecord>): ActionRecord {
 }
 
 describe("task board helpers", () => {
-  it("buckets all delivery-window dates independently and excludes undated actions", () => {
-    const dated = action({ id: "both", startOn: "2026-08-15", scheduledFor: "2026-08-15", dueOn: "2026-08-16", reviewOn: "2026-08-17" });
-    expect(taskDateEntries([action({ id: "none" }), dated])).toEqual([
-      { action: dated, date: "2026-08-15", kind: "start" },
-      { action: dated, date: "2026-08-15", kind: "scheduled" },
-      { action: dated, date: "2026-08-16", kind: "due" },
-      { action: dated, date: "2026-08-17", kind: "review" },
+  it("expands delivery windows and merges every date role for the same task", () => {
+    const dated = action({ id: "both", startOn: "2026-08-15", scheduledFor: "2026-08-15", dueOn: "2026-08-17", reviewOn: "2026-08-18" });
+    expect(taskDateEntries([action({ id: "none" }), dated], ["2026-08-15", "2026-08-16", "2026-08-17", "2026-08-18"])).toEqual([
+      { action: dated, date: "2026-08-15", kinds: ["start", "scheduled"] },
+      { action: dated, date: "2026-08-16", kinds: ["window"] },
+      { action: dated, date: "2026-08-17", kinds: ["due"] },
+      { action: dated, date: "2026-08-18", kinds: ["review"] },
     ]);
+  });
+
+  it("keeps one-sided dates and out-of-window execution dates without inventing a range", () => {
+    const startOnly = action({ id: "start", startOn: "2026-08-30" });
+    const dueOnly = action({ id: "due", dueOn: "2026-09-02" });
+    const crossMonth = action({ id: "cross", startOn: "2026-08-30", dueOn: "2026-09-02", scheduledFor: "2026-09-04" });
+    expect(taskDateEntries([startOnly, dueOnly, crossMonth], ["2026-08-30", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-04"])).toMatchObject([
+      { action: startOnly, date: "2026-08-30", kinds: ["start"] },
+      { action: crossMonth, date: "2026-08-30", kinds: ["start"] },
+      { action: crossMonth, date: "2026-08-31", kinds: ["window"] },
+      { action: crossMonth, date: "2026-09-01", kinds: ["window"] },
+      { action: dueOnly, date: "2026-09-02", kinds: ["due"] },
+      { action: crossMonth, date: "2026-09-02", kinds: ["due"] },
+      { action: crossMonth, date: "2026-09-04", kinds: ["scheduled"] },
+    ]);
+  });
+
+  it("sorts busy-day project groups by urgency and keeps each task unique", () => {
+    const due = action({ id: "due", dueOn: "2026-08-18", projects: ["[[项目乙]]"] });
+    const running = action({ id: "running", actionState: "in_progress", scheduledFor: "2026-08-18", projects: ["[[项目甲]]"] });
+    const scheduled = action({ id: "scheduled", scheduledFor: "2026-08-18", projects: ["[[项目甲]]"] });
+    const entries = taskDateEntries([scheduled, running, due], ["2026-08-18"]);
+    expect(groupTaskDateEntries(entries, "2026-08-18").map((group) => ({ project: group.project, ids: group.entries.map((entry) => entry.action.id) }))).toEqual([
+      { project: "项目乙", ids: ["due"] },
+      { project: "项目甲", ids: ["running", "scheduled"] },
+    ]);
+  });
+
+  it("prefers today, otherwise the nearest future date, while preserving a valid selection", () => {
+    expect(preferredTaskCalendarDate(["2026-08-10", "2026-08-17"], "2026-08-15")).toBe("2026-08-17");
+    expect(preferredTaskCalendarDate(["2026-08-15", "2026-08-17"], "2026-08-15")).toBe("2026-08-15");
+    expect(preferredTaskCalendarDate(["2026-08-15", "2026-08-17"], "2026-08-15", "2026-08-17")).toBe("2026-08-17");
   });
 
   it("puts running project work first and then uses the nearest delivery date", () => {
