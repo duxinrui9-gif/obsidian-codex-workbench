@@ -4,7 +4,7 @@ import type { ActionRecord } from "../lib/types";
 
 function action(overrides: Partial<ActionRecord> = {}): ActionRecord {
   return {
-    id: "ACT-20260814-001", title: "测试事项", relativePath: "05_Review/Actions/ACT-20260814-001 测试事项.md", version: "version", status: "active", actionState: "in_progress", actionArea: "project", created: "2026-08-14", updated: "2026-08-14", lastActivity: "2026-08-14", scheduledFor: "", reviewOn: "", closedAt: "", assetScope: "project", sensitivity: "restricted", evidenceStatus: "inferred", projects: [], workstreams: [], nextAction: "下一步", completionStandard: "完成", carryoverCount: 0, sourceNotes: [], sourceThreads: [], completionEvidence: [], closedReason: "", body: "", ...overrides,
+    id: "ACT-20260814-001", title: "测试事项", relativePath: "05_Review/Actions/ACT-20260814-001 测试事项.md", version: "version", status: "active", actionState: "in_progress", actionArea: "project", created: "2026-08-14", updated: "2026-08-14", lastActivity: "2026-08-14", startOn: "", dueOn: "", scheduledFor: "", reviewOn: "", closedAt: "", assetScope: "project", sensitivity: "restricted", evidenceStatus: "inferred", projects: [], workstreams: [], nextAction: "下一步", completionStandard: "完成", carryoverCount: 0, sourceNotes: [], sourceThreads: [], completionEvidence: [], closedReason: "", body: "", ...overrides,
   };
 }
 

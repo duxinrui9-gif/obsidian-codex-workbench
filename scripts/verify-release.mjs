@@ -54,7 +54,7 @@ function main() {
     try { assertFile(resolve(starter, item)); } catch (error) { failures.push(error.message); }
   }
   const action = readFileSync(resolve(starter, "98_Templates/待办事项.md"), "utf8");
-  for (const key of ["action_state", "next_action", "completion_standard", "scheduled_for", "review_on", "carryover_count", "completion_evidence", "source_threads"]) {
+  for (const key of ["action_state", "next_action", "completion_standard", "start_on", "due_on", "scheduled_for", "review_on", "carryover_count", "completion_evidence", "source_threads"]) {
     if (!action.includes(`${key}:`)) failures.push(`action template lacks ${key}`);
   }
   const project = readFileSync(resolve(starter, "98_Templates/项目主页.md"), "utf8");

@@ -14,9 +14,12 @@
 | 状态 | `action_state` | 是 |
 | 文件生命周期 | `status`，`active` / `archived` | 是 |
 | 范围、项目、下一动作、完成标准 | `action_area`、`projects`、`next_action`、`completion_standard` | 写入时需要 |
+| 交付窗口 | `start_on`、`due_on` | 可选；两者同时填写时开始日不得晚于交付日 |
 | 排期、复查、关闭 | `scheduled_for`、`review_on`、`closed_at`、`closed_reason` | 按状态需要 |
 
 规范状态为 `ready`、`in_progress`、`waiting`、`backlog`、`review`、`done`、`cancelled`。目标 Vault 使用其他字段名或值时，在 Profile 中改映射；缺少对应语义时保持只读并报告差异。
+
+`start_on` 是计划交付窗口的开始日，`due_on` 是承诺交付日，二者不会自动改变任务状态。`scheduled_for` 始终表示下一次具体执行日，`review_on` 表示等待或确认的复查日。
 
 ## 项目与报告
 

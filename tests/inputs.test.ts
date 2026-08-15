@@ -16,6 +16,6 @@ describe("runtime request parsing", () => {
   });
 
   it("keeps a valid write payload compatible with the existing API", async () => {
-    await expect(parseCreateAction(request('{"title":"事项","actionArea":"project","nextAction":"推进","completionStandard":"完成","workstreams":["MVP"],"scheduledFor":"2026-08-14"}'))).resolves.toMatchObject({ actionArea: "project", scheduledFor: "2026-08-14" });
+    await expect(parseCreateAction(request('{"title":"事项","actionArea":"project","nextAction":"推进","completionStandard":"完成","workstreams":["MVP"],"startOn":"2026-08-14","dueOn":"2026-08-16","scheduledFor":"2026-08-14"}'))).resolves.toMatchObject({ actionArea: "project", startOn: "2026-08-14", dueOn: "2026-08-16", scheduledFor: "2026-08-14" });
   });
 });

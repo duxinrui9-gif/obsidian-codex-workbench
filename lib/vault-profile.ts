@@ -21,7 +21,7 @@ export interface VaultProfile {
   timeZone: string;
   paths: { actions: string; projects: string; projectTemplate: string; reviews: Record<ReviewPeriod, string> };
   properties: {
-    action: Record<"id" | "state" | "status" | "area" | "created" | "updated" | "lastActivity" | "scheduledFor" | "reviewOn" | "closedAt" | "assetScope" | "sensitivity" | "evidenceStatus" | "projects" | "workstreams" | "nextAction" | "completionStandard" | "carryoverCount" | "sourceNotes" | "sourceThreads" | "completionEvidence" | "closedReason", string>;
+    action: Record<"id" | "state" | "status" | "area" | "created" | "updated" | "lastActivity" | "startOn" | "dueOn" | "scheduledFor" | "reviewOn" | "closedAt" | "assetScope" | "sensitivity" | "evidenceStatus" | "projects" | "workstreams" | "nextAction" | "completionStandard" | "carryoverCount" | "sourceNotes" | "sourceThreads" | "completionEvidence" | "closedReason", string>;
     project: { status: string };
     review: { kind: string; legacyKind: string; status: string; date: string; periodStart: string; periodEnd: string; projects: string; testArtifact: string };
   };
@@ -42,7 +42,7 @@ export function vaultProfile(): VaultProfile {
       },
     },
     properties: {
-      action: { id: "action_id", state: "action_state", status: "status", area: "action_area", created: "created", updated: "updated", lastActivity: "last_activity", scheduledFor: "scheduled_for", reviewOn: "review_on", closedAt: "closed_at", assetScope: "asset_scope", sensitivity: "sensitivity", evidenceStatus: "evidence_status", projects: "projects", workstreams: "workstreams", nextAction: "next_action", completionStandard: "completion_standard", carryoverCount: "carryover_count", sourceNotes: "source_notes", sourceThreads: "source_threads", completionEvidence: "completion_evidence", closedReason: "closed_reason" },
+      action: { id: "action_id", state: "action_state", status: "status", area: "action_area", created: "created", updated: "updated", lastActivity: "last_activity", startOn: "start_on", dueOn: "due_on", scheduledFor: "scheduled_for", reviewOn: "review_on", closedAt: "closed_at", assetScope: "asset_scope", sensitivity: "sensitivity", evidenceStatus: "evidence_status", projects: "projects", workstreams: "workstreams", nextAction: "next_action", completionStandard: "completion_standard", carryoverCount: "carryover_count", sourceNotes: "source_notes", sourceThreads: "source_threads", completionEvidence: "completion_evidence", closedReason: "closed_reason" },
       project: { status: "status" },
       review: { kind: "daily_kind", legacyKind: "review_kind", status: "status", date: "date", periodStart: "period_start", periodEnd: "period_end", projects: "projects", testArtifact: "test_artifact" },
     },

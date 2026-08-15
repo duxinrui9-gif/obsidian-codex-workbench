@@ -34,6 +34,8 @@ export interface ActionRecord {
   created: string;
   updated: string;
   lastActivity: string;
+  startOn: string;
+  dueOn: string;
   scheduledFor: string;
   reviewOn: string;
   closedAt: string;
@@ -62,6 +64,7 @@ export interface ProjectSummary {
   overdueCount: number;
   waitingCount: number;
   inProgressCount: number;
+  overdueDeliveryCount: number;
   tasks: ActionRecord[];
   doneTasks: ActionRecord[];
   cancelledTasks: ActionRecord[];
@@ -119,6 +122,8 @@ export interface CreateActionInput {
   workstreams?: string[];
   nextAction: string;
   completionStandard: string;
+  startOn?: string;
+  dueOn?: string;
   scheduledFor?: string;
   assetScope?: AssetScope;
 }
@@ -138,6 +143,8 @@ export interface ActionPatch {
   workstreams?: string[];
   nextAction?: string;
   completionStandard?: string;
+  startOn?: string;
+  dueOn?: string;
   scheduledFor?: string;
   reviewOn?: string;
   assetScope?: AssetScope;

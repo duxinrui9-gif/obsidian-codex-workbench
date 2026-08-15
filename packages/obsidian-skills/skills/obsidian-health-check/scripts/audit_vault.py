@@ -84,7 +84,7 @@ VALID_VALUES = {
     "action_state": {"ready", "in_progress", "waiting", "backlog", "review", "done", "cancelled"},
     "action_area": {"project", "knowledge", "personal", "candidate"},
 }
-DATE_PROPERTIES = {"created", "updated", "captured", "review_due", "follow_up_due", "published", "last_activity", "scheduled_for", "review_on", "closed_at"}
+DATE_PROPERTIES = {"created", "updated", "captured", "review_due", "follow_up_due", "published", "last_activity", "start_on", "due_on", "scheduled_for", "review_on", "closed_at"}
 NONEMPTY_PROPERTIES = {"status", "created", "updated", "source_kind", "captured", "content_hash", "asset_scope", "sensitivity", "evidence_status", "maturity", "confidence", "review_period", "date", "migration_batch", "action_id", "action_state", "action_area", "last_activity", "completion_standard"}
 BOOLEAN_PROPERTIES = {"has_legacy_plan", "has_legacy_report", "daily_report_enabled", "coverage_verified"}
 ACTION_ID_RE = re.compile(r"^ACT-\d{8}-\d{3}$")

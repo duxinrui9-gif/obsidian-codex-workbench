@@ -34,6 +34,7 @@ describe("Vault adapter", () => {
     const [actions, reviews, projects] = await Promise.all([readActions(), readReviews("daily"), readProjects()]);
     expect(actions).toHaveLength(1);
     expect(actions[0].title).toBe("测试任务");
+    expect(actions[0]).toMatchObject({ startOn: "2026-08-13", dueOn: "2026-08-15", scheduledFor: "2026-08-13" });
     expect(actions[0].projects).toEqual(["[[03_Topics/项目/测试项目]]"]);
     expect(reviews).toHaveLength(2);
     const report = reviews.find((review) => review.kind === "report");
@@ -129,9 +130,10 @@ describe("Vault adapter", () => {
   });
 
   it("creates and transitions a task with lifecycle guards", async () => {
-    const created = await createAction({ title: "新建测试任务", actionArea: "project", project: "测试项目", workstreams: ["MVP"], nextAction: "开始验证", completionStandard: "形成结果", scheduledFor: "2026-08-14" });
+    const created = await createAction({ title: "新建测试任务", actionArea: "project", project: "测试项目", workstreams: ["MVP"], nextAction: "开始验证", completionStandard: "形成结果", startOn: "2026-08-14", dueOn: "2026-08-18", scheduledFor: "2026-08-14" });
     expect(created.id).toMatch(/^ACT-\d{8}-\d{3}$/);
     expect(created.actionState).toBe("ready");
+    expect(created).toMatchObject({ startOn: "2026-08-14", dueOn: "2026-08-18" });
     await expect(transitionAction(created.id, { expectedVersion: created.version, transition: "wait", reviewOn: "2026-08-15", note: "不允许" })).rejects.toMatchObject({ code: "INVALID_STATE_TRANSITION" });
     await expect(transitionAction(created.id, { expectedVersion: created.version, transition: "complete", note: "不允许" })).rejects.toMatchObject({ code: "INVALID_STATE_TRANSITION" });
     const running = await transitionAction(created.id, { expectedVersion: created.version, transition: "start" });
@@ -139,6 +141,7 @@ describe("Vault adapter", () => {
     const carriedToSchedule = await transitionAction(running.id, { expectedVersion: running.version, transition: "carryover", scheduledFor: "2026-08-16" });
     expect(carriedToSchedule.actionState).toBe("ready");
     expect(carriedToSchedule.scheduledFor).toBe("2026-08-16");
+    expect(carriedToSchedule).toMatchObject({ startOn: "2026-08-14", dueOn: "2026-08-18" });
     expect(carriedToSchedule.carryoverCount).toBe(1);
     const carriedToBacklog = await transitionAction(carriedToSchedule.id, { expectedVersion: carriedToSchedule.version, transition: "carryover" });
     expect(carriedToBacklog.actionState).toBe("backlog");
@@ -157,6 +160,23 @@ describe("Vault adapter", () => {
     await expect(patchAction(complete.id, { expectedVersion: complete.version, nextAction: "不允许修改" })).rejects.toMatchObject({ code: "ARCHIVED_ACTION_READ_ONLY" });
     const raw = await fs.readFile(path.join(temporaryVault, complete.relativePath), "utf8");
     expect(raw).toContain("已确认并完成");
+  });
+
+  it("keeps legacy dates empty and validates delivery-window edits", async () => {
+    const legacyPath = path.join(temporaryVault, "05_Review/Actions/ACT-20260813-002 历史任务.md");
+    const fixtureRaw = await fs.readFile(path.join(temporaryVault, "05_Review/Actions/ACT-20260813-001 测试任务.md"), "utf8");
+    await fs.writeFile(legacyPath, fixtureRaw.replace("ACT-20260813-001", "ACT-20260813-002").replace("# 测试任务", "# 历史任务").replace("start_on: 2026-08-13\ndue_on: 2026-08-15\n", ""));
+    expect(await getAction("ACT-20260813-002")).toMatchObject({ startOn: "", dueOn: "" });
+
+    const current = await getAction("ACT-20260813-001");
+    await expect(patchAction(current.id, { expectedVersion: current.version, startOn: "2026-08-20", dueOn: "2026-08-18" })).rejects.toMatchObject({ status: 422, code: "INVALID_INPUT" });
+    const latest = await getAction(current.id);
+    const patched = await patchAction(latest.id, { expectedVersion: latest.version, startOn: "2026-08-14", dueOn: "2026-08-18" });
+    expect(patched).toMatchObject({ startOn: "2026-08-14", dueOn: "2026-08-18" });
+    const cleared = await patchAction(patched.id, { expectedVersion: patched.version, startOn: "", dueOn: "" });
+    expect(cleared).toMatchObject({ startOn: "", dueOn: "" });
+    const after = await getAction(cleared.id);
+    await expect(patchAction(after.id, { expectedVersion: after.version, startOn: "2026-02-31" })).rejects.toMatchObject({ status: 422, code: "INVALID_INPUT" });
   });
 
   it("creates a complete project page and exposes zero-task projects", async () => {

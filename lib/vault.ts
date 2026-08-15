@@ -112,6 +112,19 @@ function projectName(value: string): string {
   return target.split("/").pop() ?? target;
 }
 
+function validateDeliveryWindow(startOn: string, dueOn: string): void {
+  try {
+    if (startOn) assertIsoDate(startOn, "开始日期");
+    if (dueOn) assertIsoDate(dueOn, "交付日期");
+  } catch (error) {
+    if (error instanceof AppError && error.code === "INVALID_DATE") throw new AppError(error.message, 422, "INVALID_INPUT");
+    throw error;
+  }
+  if (startOn && dueOn && startOn > dueOn) {
+    throw new AppError("开始日期不能晚于交付日期。", 422, "INVALID_INPUT");
+  }
+}
+
 function parseAction(raw: string, absolutePath: string, root: string): ActionRecord {
   const { yaml, body } = splitFrontmatter(raw);
   const values = yaml.toJS() as Record<string, unknown>;
@@ -132,6 +145,8 @@ function parseAction(raw: string, absolutePath: string, root: string): ActionRec
     created: getString(values[fields.created]),
     updated: getString(values[fields.updated]),
     lastActivity: getString(values[fields.lastActivity]),
+    startOn: getString(values[fields.startOn]),
+    dueOn: getString(values[fields.dueOn]),
     scheduledFor: getString(values[fields.scheduledFor]),
     reviewOn: getString(values[fields.reviewOn]),
     closedAt: getString(values[fields.closedAt]),
@@ -309,6 +324,11 @@ export async function patchAction(id: string, patch: ActionPatch): Promise<Actio
     if (patch.nextAction !== undefined) props.set(fields.nextAction, validateText(patch.nextAction, "下一动作"));
     if (patch.completionStandard !== undefined) props.set(fields.completionStandard, validateText(patch.completionStandard, "完成标准"));
     if (patch.assetScope !== undefined) props.set(fields.assetScope, validateScope(patch.assetScope));
+    const startOn = patch.startOn ?? current.startOn;
+    const dueOn = patch.dueOn ?? current.dueOn;
+    validateDeliveryWindow(startOn, dueOn);
+    if (patch.startOn !== undefined) props.set(fields.startOn, patch.startOn);
+    if (patch.dueOn !== undefined) props.set(fields.dueOn, patch.dueOn);
     if (patch.scheduledFor !== undefined) {
       if (patch.scheduledFor) assertIsoDate(patch.scheduledFor, "计划日期");
       props.set(fields.scheduledFor, patch.scheduledFor);
@@ -392,6 +412,7 @@ export async function createAction(input: CreateActionInput): Promise<ActionReco
   const actionArea = validateArea(input.actionArea);
   const nextAction = validateText(input.nextAction, "下一动作");
   const completionStandard = validateText(input.completionStandard, "完成标准");
+  validateDeliveryWindow(input.startOn ?? "", input.dueOn ?? "");
   if (input.scheduledFor) assertIsoDate(input.scheduledFor, "计划日期");
   const fields = vaultProfile().properties.action;
   const directory = await safeDirectory(vaultProfile().paths.actions);
@@ -402,7 +423,7 @@ export async function createAction(input: CreateActionInput): Promise<ActionReco
   const state: ActionState = input.scheduledFor ? "ready" : "backlog";
   const scope = input.assetScope ? validateScope(input.assetScope) : actionArea === "project" ? "project" : "personal";
   const project = input.project?.trim() ? [toWikiProject(input.project.trim())] : [];
-  const content = `---\ntype: action\n${fields.status}: active\n${fields.id}: ${id}\n${fields.state}: ${actionStateToSource(state)}\n${fields.area}: ${actionArea}\n${fields.created}: ${today()}\n${fields.updated}: ${today()}\n${fields.lastActivity}: ${today()}\n${fields.scheduledFor}: ${input.scheduledFor ?? ""}\n${fields.reviewOn}: \"\"\n${fields.closedAt}: \"\"\n${fields.assetScope}: ${scope}\n${fields.sensitivity}: restricted\n${fields.evidenceStatus}: inferred\n${fields.projects}: ${JSON.stringify(project)}\n${fields.workstreams}: ${JSON.stringify((input.workstreams ?? []).filter(Boolean))}\n${fields.nextAction}: ${JSON.stringify(nextAction)}\n${fields.completionStandard}: ${JSON.stringify(completionStandard)}\n${fields.carryoverCount}: 0\n${fields.sourceNotes}: []\n${fields.sourceThreads}: []\n${fields.completionEvidence}: []\n${fields.closedReason}: \"\"\nmigration_batch: action-ledger-web-mvp\n---\n\n# ${title}\n\n## 状态记录\n\n| 日期 | 状态 | 记录 |\n| --- | --- | --- |\n| ${today()} | ${actionStateToSource(state)} | 通过 Vibe Mission Control 新建事项。 |\n`;
+  const content = `---\ntype: action\n${fields.status}: active\n${fields.id}: ${id}\n${fields.state}: ${actionStateToSource(state)}\n${fields.area}: ${actionArea}\n${fields.created}: ${today()}\n${fields.updated}: ${today()}\n${fields.lastActivity}: ${today()}\n${fields.startOn}: ${input.startOn ?? ""}\n${fields.dueOn}: ${input.dueOn ?? ""}\n${fields.scheduledFor}: ${input.scheduledFor ?? ""}\n${fields.reviewOn}: \"\"\n${fields.closedAt}: \"\"\n${fields.assetScope}: ${scope}\n${fields.sensitivity}: restricted\n${fields.evidenceStatus}: inferred\n${fields.projects}: ${JSON.stringify(project)}\n${fields.workstreams}: ${JSON.stringify((input.workstreams ?? []).filter(Boolean))}\n${fields.nextAction}: ${JSON.stringify(nextAction)}\n${fields.completionStandard}: ${JSON.stringify(completionStandard)}\n${fields.carryoverCount}: 0\n${fields.sourceNotes}: []\n${fields.sourceThreads}: []\n${fields.completionEvidence}: []\n${fields.closedReason}: \"\"\nmigration_batch: action-ledger-web-mvp\n---\n\n# ${title}\n\n## 状态记录\n\n| 日期 | 状态 | 记录 |\n| --- | --- | --- |\n| ${today()} | ${actionStateToSource(state)} | 通过 Vibe Mission Control 新建事项。 |\n`;
   const file = path.join(directory, `${id} ${title}.md`);
   await fs.writeFile(file, content, { encoding: "utf8", flag: "wx" });
   const root = await vaultRoot();
@@ -458,6 +479,7 @@ export async function createProject(input: CreateProjectInput): Promise<ProjectS
     overdueCount: 0,
     waitingCount: 0,
     inProgressCount: 0,
+    overdueDeliveryCount: 0,
     tasks: [],
     doneTasks: [],
     cancelledTasks: [],
@@ -588,6 +610,7 @@ export async function readProjectsWithIssues(providedActions?: ActionRecord[]): 
       overdueCount: tasks.filter((task) => task.reviewOn && task.reviewOn < todayValue).length,
       waitingCount: tasks.filter((task) => task.actionState === "waiting").length,
       inProgressCount: tasks.filter((task) => task.actionState === "in_progress").length,
+      overdueDeliveryCount: tasks.filter((task) => task.dueOn && task.dueOn < todayValue).length,
       tasks,
       doneTasks,
       cancelledTasks,
