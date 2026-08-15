@@ -19,7 +19,7 @@
 
 规范状态为 `ready`、`in_progress`、`waiting`、`backlog`、`review`、`done`、`cancelled`。目标 Vault 使用其他字段名或值时，在 Profile 中改映射；缺少对应语义时保持只读并报告差异。
 
-`start_on` 是计划交付窗口的开始日，`due_on` 是承诺交付日，二者不会自动改变任务状态。`scheduled_for` 始终表示下一次具体执行日，`review_on` 表示等待或确认的复查日。
+`start_on` 是计划交付窗口的开始日，`due_on` 是承诺交付日，二者不会自动改变任务状态。任务日历将同时填写的两个日期作为首尾均包含的连续窗口；同一任务同日的日期角色合并显示。`scheduled_for` 始终表示下一次具体执行日，`review_on` 表示等待或确认的复查日。
 
 ## 项目与报告
 
