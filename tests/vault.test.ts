@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppError } from "../lib/errors";
 import { assertIsoDate, assertLocalRequest, assertSafeId } from "../lib/security";
-import { createAction, createProject, getAction, getReview, patchAction, readActions, readActionsWithIssues, readProjects, readProjectsWithIssues, readReviews, readReviewsWithIssues, readWorkbenchSnapshot, transitionAction } from "../lib/vault";
+import { createAction, createCollaborator, createProject, getAction, getCollaborator, getReview, patchAction, patchCollaborator, readActions, readActionsWithIssues, readCollaboratorsWithIssues, readProjects, readProjectsWithIssues, readReviews, readReviewsWithIssues, readWorkbenchSnapshot, transitionAction } from "../lib/vault";
 
 let temporaryVault = "";
 const fixture = path.join(process.cwd(), "tests", "fixtures", "vault");
@@ -19,6 +19,8 @@ beforeEach(async () => {
   delete process.env.WORKBENCH_ACTIONS_DIR;
   delete process.env.WORKBENCH_PROJECTS_DIR;
   delete process.env.WORKBENCH_PROJECT_TEMPLATE;
+  delete process.env.WORKBENCH_COLLABORATORS_DIR;
+  delete process.env.WORKBENCH_COLLABORATOR_TEMPLATE;
   delete process.env.WORKBENCH_DAILY_DIR;
   delete process.env.WORKBENCH_WEEKLY_DIR;
   delete process.env.WORKBENCH_MONTHLY_DIR;
@@ -193,6 +195,34 @@ describe("Vault adapter", () => {
     expect((await readProjects()).find((item) => item.name === "新项目")?.activeCount).toBe(0);
     await expect(createProject({ name: "新项目", goal: "重复", successCriteria: "重复", nextAction: "重复" })).rejects.toMatchObject({ code: "PROJECT_EXISTS" });
     await expect(createProject({ name: "../越界", goal: "非法", successCriteria: "非法", nextAction: "非法" })).rejects.toMatchObject({ code: "INVALID_PROJECT_NAME" });
+  });
+
+  it("reads, creates, and safely edits collaborator role cards", async () => {
+    const initial = await readCollaboratorsWithIssues();
+    expect(initial).toMatchObject({ available: true });
+    expect(initial.items[0]).toMatchObject({ title: "测试协作人", relationshipRoles: ["项目顾问"] });
+    const existing = initial.items[0];
+    const patched = await patchCollaborator(existing.id, { expectedVersion: existing.version, aliases: ["新别名"], relationshipRoles: ["策略顾问"], collaborationTopics: ["增长策略"] });
+    expect(patched.aliases).toEqual(["新别名"]);
+    expect(await fs.readFile(path.join(temporaryVault, existing.relativePath), "utf8")).toContain("这段正文必须被编辑保留。");
+    await expect(patchCollaborator(existing.id, { expectedVersion: existing.version, aliases: ["冲突"] })).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
+    const created = await createCollaborator({ name: "新协作人", relationshipRoles: ["合作伙伴"], projects: ["测试项目"] });
+    expect(created).toMatchObject({ title: "新协作人", status: "active", assetScope: "personal", sensitivity: "restricted" });
+    await expect(createCollaborator({ name: "新协作人", relationshipRoles: ["合作伙伴"], projects: ["测试项目"] })).rejects.toMatchObject({ code: "COLLABORATOR_EXISTS" });
+    await expect(createCollaborator({ name: "../越界", relationshipRoles: ["合作伙伴"], projects: ["测试项目"] })).rejects.toMatchObject({ code: "INVALID_COLLABORATOR_NAME" });
+    await expect(createCollaborator({ name: "缺少上下文", relationshipRoles: ["合作伙伴"] })).rejects.toMatchObject({ code: "COLLABORATOR_CONTEXT_REQUIRED" });
+    const raw = await getCollaborator(created.id);
+    await expect(patchCollaborator(raw.id, { expectedVersion: raw.version, projects: [], collaborationTopics: [] })).rejects.toMatchObject({ code: "COLLABORATOR_CONTEXT_REQUIRED" });
+  });
+
+  it("degrades invalid frozen metrics without hiding the report", async () => {
+    const report = path.join(temporaryVault, "05_Review/Daily/2026-08/Report/2026-08-13.md");
+    const raw = await fs.readFile(report, "utf8");
+    await fs.writeFile(report, raw.replace("status: complete", "status: complete\nmetric_completed_actions: -1"));
+    const reviews = await readReviewsWithIssues("daily");
+    expect(reviews.items).toHaveLength(2);
+    expect(reviews.issues).toContainEqual(expect.objectContaining({ code: "INVALID_REVIEW_METRIC" }));
+    expect(reviews.items.find((item) => item.kind === "report")?.metrics).toBeNull();
   });
 
   it("rejects project creation when the template is unavailable", async () => {

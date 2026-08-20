@@ -1,6 +1,6 @@
 import type { VaultIssue } from "@/lib/types";
 
-const KIND: Record<VaultIssue["kind"], string> = { action: "事项", project: "项目", review: "报告" };
+const KIND: Record<VaultIssue["kind"], string> = { action: "事项", project: "项目", review: "报告", collaborator: "协作人" };
 
 export function VaultIssuesNotice({ issues, vaultName }: { issues: VaultIssue[]; vaultName: string }) {
   if (!issues.length) return null;

@@ -12,6 +12,10 @@ import {
   type ActionRecord,
   type ActionState,
   type AssetScope,
+  type CollaboratorPatch,
+  type CollaboratorRecord,
+  type CollaboratorStatus,
+  type CreateCollaboratorInput,
   type CreateActionInput,
   type CreateProjectInput,
   type HealthResponse,
@@ -31,6 +35,7 @@ const ALLOWED_SCOPES: AssetScope[] = ["personal", "organization", "project", "br
 
 declare global {
   var __vibeActionWriteLocks: Map<string, Promise<void>> | undefined;
+  var __vibeCollaboratorWriteLocks: Map<string, Promise<void>> | undefined;
 }
 
 function hash(content: string): string {
@@ -246,6 +251,21 @@ function validateProjectName(value: string): string {
     throw new AppError("项目名称不能包含文件路径字符。", 422, "INVALID_PROJECT_NAME");
   }
   return name;
+}
+
+function validateCollaboratorName(value: string): string {
+  const name = validateText(value, "协作人姓名");
+  if (name.length > 120 || name === "." || name === ".." || name.startsWith(".") || /[\\/:*?"<>|]/.test(name)) {
+    throw new AppError("协作人姓名不能包含文件路径字符。", 422, "INVALID_COLLABORATOR_NAME");
+  }
+  return name;
+}
+
+function validateList(values: string[], label: string, required = false): string[] {
+  const normalized = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  if (required && !normalized.length) throw new AppError(`请至少填写一项${label}。`, 422, "FIELD_REQUIRED");
+  if (normalized.some((value) => value.length > 160)) throw new AppError(`${label}不能超过 160 个字符。`, 422, "FIELD_TOO_LONG");
+  return normalized;
 }
 
 function oneLine(value: string): string {
@@ -488,11 +508,226 @@ export async function createProject(input: CreateProjectInput): Promise<ProjectS
   };
 }
 
+async function collaboratorDirectory(): Promise<string | null> {
+  try {
+    return await safeDirectory(vaultProfile().paths.collaborators);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function collaboratorStatus(value: string): CollaboratorStatus {
+  return projectStatusFromSource(value || projectStatusToSource("active"));
+}
+
+function parseCollaborator(raw: string, absolutePath: string, root: string): CollaboratorRecord | null {
+  const { yaml, body } = splitFrontmatter(raw);
+  const values = yaml.toJS() as Record<string, unknown>;
+  const fields = vaultProfile().properties.collaborator;
+  if (getString(values[fields.type]) !== "topic" || getString(values[fields.kind]) !== "collaborator_reference") return null;
+  const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || path.basename(absolutePath, ".md");
+  return {
+    id: Buffer.from(path.relative(root, absolutePath)).toString("base64url"),
+    title,
+    relativePath: path.relative(root, absolutePath),
+    version: hash(raw),
+    status: collaboratorStatus(getString(values[fields.status])),
+    created: getString(values[fields.created]),
+    updated: getString(values[fields.updated]),
+    assetScope: getString(values[fields.assetScope]) as AssetScope,
+    sensitivity: getString(values[fields.sensitivity]),
+    evidenceStatus: getString(values[fields.evidenceStatus]),
+    aliases: getStringArray(values[fields.aliases]),
+    relationshipRoles: getStringArray(values[fields.relationshipRoles]),
+    projects: getStringArray(values[fields.projects]),
+    collaborationTopics: getStringArray(values[fields.collaborationTopics]),
+    sourceNotes: getStringArray(values[fields.sourceNotes]),
+    sourceThreads: getStringArray(values[fields.sourceThreads]),
+    body,
+  };
+}
+
+export async function readCollaboratorsWithIssues(): Promise<ReadResult<CollaboratorRecord> & { available: boolean }> {
+  const directory = await collaboratorDirectory();
+  if (!directory) return { items: [], issues: [], available: false };
+  const root = await vaultRoot();
+  const files = await markdownFiles(vaultProfile().paths.collaborators);
+  const items: CollaboratorRecord[] = [];
+  const issues: VaultIssue[] = [];
+  for (const file of files) {
+    if (isVaultGuide(file)) continue;
+    try {
+      const record = parseCollaborator(await fs.readFile(file, "utf8"), file, root);
+      if (!record) continue;
+      if (record.status === "unknown") issues.push({ kind: "collaborator", relativePath: record.relativePath, code: "INVALID_COLLABORATOR_STATUS", message: "协作人状态无效，已按待确认显示。" });
+      items.push(record);
+    } catch (error) {
+      issues.push(vaultIssue("collaborator", file, root, error));
+    }
+  }
+  items.sort((a, b) => b.updated.localeCompare(a.updated) || a.title.localeCompare(b.title, "zh-Hans-CN"));
+  return { items, issues, available: true };
+}
+
+export async function readCollaborators(): Promise<CollaboratorRecord[]> {
+  return (await readCollaboratorsWithIssues()).items;
+}
+
+function collaboratorRelativePath(id: string): string {
+  const decoded = Buffer.from(id, "base64url").toString("utf8");
+  const directory = vaultProfile().paths.collaborators;
+  if (!decoded.startsWith(`${directory}/`) || !decoded.endsWith(".md")) throw new AppError("协作人标识无效。", 400, "INVALID_COLLABORATOR_ID");
+  return decoded;
+}
+
+async function collaboratorLocation(id: string): Promise<string> {
+  const decoded = collaboratorRelativePath(id);
+  const root = await vaultRoot();
+  const file = path.resolve(root, decoded);
+  const real = await fs.realpath(file).catch(() => "");
+  if (!real) throw new AppError("找不到该协作人角色卡。", 404, "COLLABORATOR_NOT_FOUND");
+  if (!real.startsWith(`${root}${path.sep}`)) throw new AppError("协作人角色卡路径超出 Vault 范围。", 403, "PATH_OUTSIDE_VAULT");
+  return real;
+}
+
+export async function getCollaborator(id: string): Promise<CollaboratorRecord> {
+  const root = await vaultRoot();
+  const file = await collaboratorLocation(id);
+  const record = parseCollaborator(await fs.readFile(file, "utf8"), file, root);
+  if (!record) throw new AppError("该文件不是协作人角色卡。", 404, "COLLABORATOR_NOT_FOUND");
+  return record;
+}
+
+function collaboratorWriteLocks(): Map<string, Promise<void>> {
+  globalThis.__vibeCollaboratorWriteLocks ??= new Map<string, Promise<void>>();
+  return globalThis.__vibeCollaboratorWriteLocks;
+}
+
+async function withCollaboratorWriteLock<T>(id: string, operation: () => Promise<T>): Promise<T> {
+  const locks = collaboratorWriteLocks();
+  const previous = locks.get(id) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const tail = previous.then(() => gate);
+  locks.set(id, tail);
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (locks.get(id) === tail) locks.delete(id);
+  }
+}
+
+async function collaboratorTemplate(): Promise<string> {
+  const root = await vaultRoot();
+  const file = path.resolve(root, vaultProfile().paths.collaboratorTemplate);
+  const real = await fs.realpath(file).catch(() => "");
+  if (!real || !real.startsWith(`${root}${path.sep}`)) throw new AppError("找不到协作人角色卡模板。", 422, "COLLABORATOR_TEMPLATE_MISSING");
+  const raw = await fs.readFile(real, "utf8");
+  const required = ["topic_kind: collaborator_reference", "relationship_roles:", "collaboration_topics:"];
+  if (!required.every((marker) => raw.includes(marker)) || (!raw.includes("{{title}}") && !/^#\s+协作人姓名\s*$/m.test(raw))) throw new AppError("协作人角色卡模板结构不符合要求。", 422, "COLLABORATOR_TEMPLATE_INVALID");
+  return raw;
+}
+
+function applyCollaboratorProperties(document: ReturnType<typeof splitFrontmatter>, input: Omit<CreateCollaboratorInput, "name"> | CollaboratorPatch): void {
+  const fields = vaultProfile().properties.collaborator;
+  const props = document.yaml;
+  if (input.aliases !== undefined) props.set(fields.aliases, validateList(input.aliases, "别名"));
+  if (input.relationshipRoles !== undefined) props.set(fields.relationshipRoles, validateList(input.relationshipRoles, "协作角色", true));
+  if (input.projects !== undefined) props.set(fields.projects, validateList(input.projects, "关联项目").map(toWikiProject));
+  if (input.collaborationTopics !== undefined) props.set(fields.collaborationTopics, validateList(input.collaborationTopics, "协作主题"));
+  if (input.sourceNotes !== undefined) props.set(fields.sourceNotes, validateList(input.sourceNotes, "来源笔记"));
+  if (input.sourceThreads !== undefined) props.set(fields.sourceThreads, validateList(input.sourceThreads, "来源任务"));
+  const projects = getStringArray(props.get(fields.projects));
+  const topics = getStringArray(props.get(fields.collaborationTopics));
+  if (!projects.length && !topics.length) throw new AppError("请至少填写一个关联项目或协作主题。", 422, "COLLABORATOR_CONTEXT_REQUIRED");
+}
+
+export async function createCollaborator(input: CreateCollaboratorInput): Promise<CollaboratorRecord> {
+  const name = validateCollaboratorName(input.name);
+  const directory = await collaboratorDirectory();
+  if (!directory) throw new AppError("尚未配置协作人目录，不能新建角色卡。", 422, "COLLABORATOR_DIRECTORY_UNAVAILABLE");
+  const template = await collaboratorTemplate();
+  const document = splitFrontmatter(template.replaceAll("{{date:YYYY-MM-DD}}", today()).replaceAll("{{title}}", name).replace(/^#\s+协作人姓名\s*$/m, `# ${name}`));
+  const fields = vaultProfile().properties.collaborator;
+  document.yaml.set(fields.type, "topic");
+  document.yaml.set(fields.kind, "collaborator_reference");
+  document.yaml.set(fields.status, "active");
+  document.yaml.set(fields.created, today());
+  document.yaml.set(fields.updated, today());
+  document.yaml.set(fields.assetScope, "personal");
+  document.yaml.set(fields.sensitivity, "restricted");
+  document.yaml.set(fields.evidenceStatus, "observed");
+  applyCollaboratorProperties(document, input);
+  const content = stringifyFrontmatter(document);
+  const file = path.join(directory, `${name}.md`);
+  try {
+    await fs.writeFile(file, content, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new AppError("同名协作人角色卡已经存在。", 409, "COLLABORATOR_EXISTS");
+    throw error;
+  }
+  const root = await vaultRoot();
+  const record = parseCollaborator(content, file, root);
+  if (!record) throw new AppError("协作人角色卡创建失败。", 500, "COLLABORATOR_CREATE_FAILED");
+  return record;
+}
+
+export async function patchCollaborator(id: string, patch: CollaboratorPatch): Promise<CollaboratorRecord> {
+  collaboratorRelativePath(id);
+  return withCollaboratorWriteLock(id, async () => {
+    const root = await vaultRoot();
+    const file = await collaboratorLocation(id);
+    const raw = await fs.readFile(file, "utf8");
+    const current = parseCollaborator(raw, file, root);
+    if (!current) throw new AppError("该文件不是协作人角色卡。", 404, "COLLABORATOR_NOT_FOUND");
+    if (current.status === "archived" || current.status === "ignored") throw new AppError("已结束协作人角色卡仅供查看，不能再修改。", 422, "ARCHIVED_COLLABORATOR_READ_ONLY");
+    if (!patch.expectedVersion || patch.expectedVersion !== current.version) throw new AppError("协作人角色卡已被 Obsidian 或其他窗口修改。请刷新后再保存。", 409, "VERSION_CONFLICT");
+    const document = splitFrontmatter(raw);
+    applyCollaboratorProperties(document, patch);
+    document.yaml.set(vaultProfile().properties.collaborator.updated, today());
+    const next = stringifyFrontmatter(document);
+    await backupAndWrite(file, raw, next);
+    const record = parseCollaborator(next, file, root);
+    if (!record) throw new AppError("协作人角色卡更新失败。", 500, "COLLABORATOR_UPDATE_FAILED");
+    return record;
+  });
+}
+
 function inferReviewKind(values: Record<string, unknown>, relativePath: string, title: string): { kind: ReviewKind; legacy: boolean } {
   const fields = vaultProfile().properties.review;
   const direct = getString(values[fields.kind] || values[fields.legacyKind]) as ReviewKind;
   if (direct === "plan" || direct === "report") return { kind: direct, legacy: false };
   return { kind: /计划|规划|\/Plan\//.test(`${relativePath} ${title}`) ? "plan" : "report", legacy: true };
+}
+
+function metricValue(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : null;
+}
+
+function reviewMetrics(values: Record<string, unknown>): ReviewRecord["metrics"] {
+  const fields = vaultProfile().properties.review;
+  const metrics = {
+    asOf: getString(values[fields.metricsAsOf]),
+    completedActions: metricValue(values[fields.completedActions]),
+    carryoverEvents: metricValue(values[fields.carryoverEvents]),
+    waitingActions: metricValue(values[fields.waitingActions]),
+    overdueReviews: metricValue(values[fields.overdueReviews]),
+    overdueDeliveries: metricValue(values[fields.overdueDeliveries]),
+  };
+  return Object.values(metrics).some((value) => value !== "" && value !== null) ? metrics : null;
+}
+
+function invalidReviewMetric(values: Record<string, unknown>): boolean {
+  const fields = vaultProfile().properties.review;
+  return [fields.completedActions, fields.carryoverEvents, fields.waitingActions, fields.overdueReviews, fields.overdueDeliveries].some((field) => {
+    const value = values[field];
+    return value !== undefined && value !== null && value !== "" && metricValue(value) === null;
+  });
 }
 
 function parseReview(raw: string, absolutePath: string, root: string, period: ReviewPeriod): ReviewRecord {
@@ -513,6 +748,7 @@ function parseReview(raw: string, absolutePath: string, root: string, period: Re
     periodStart: getString(values[fields.periodStart]),
     periodEnd: getString(values[fields.periodEnd]),
     projects: getStringArray(values[fields.projects]),
+    metrics: reviewMetrics(values),
     isLegacy: inferred.legacy,
   };
 }
@@ -542,6 +778,7 @@ export async function readReviewsWithIssues(period?: ReviewPeriod, includeTests 
         const values = yaml.toJS() as Record<string, unknown>;
         if (!includeTests && values[vaultProfile().properties.review.testArtifact] === true) continue;
         result.push(parseReview(raw, file, root, item));
+        if (invalidReviewMetric(values)) issues.push({ kind: "review", relativePath: path.relative(root, file), code: "INVALID_REVIEW_METRIC", message: "冻结指标必须是非负整数；无效指标已按未采集处理。" });
       } catch (error) {
         issues.push(vaultIssue("review", file, root, error));
       }

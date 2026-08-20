@@ -19,11 +19,12 @@ export const clientTimeZone = process.env.NEXT_PUBLIC_WORKBENCH_TIME_ZONE ?? DEF
 
 export interface VaultProfile {
   timeZone: string;
-  paths: { actions: string; projects: string; projectTemplate: string; reviews: Record<ReviewPeriod, string> };
+  paths: { actions: string; projects: string; projectTemplate: string; collaborators: string; collaboratorTemplate: string; reviews: Record<ReviewPeriod, string> };
   properties: {
     action: Record<"id" | "state" | "status" | "area" | "created" | "updated" | "lastActivity" | "startOn" | "dueOn" | "scheduledFor" | "reviewOn" | "closedAt" | "assetScope" | "sensitivity" | "evidenceStatus" | "projects" | "workstreams" | "nextAction" | "completionStandard" | "carryoverCount" | "sourceNotes" | "sourceThreads" | "completionEvidence" | "closedReason", string>;
     project: { status: string };
-    review: { kind: string; legacyKind: string; status: string; date: string; periodStart: string; periodEnd: string; projects: string; testArtifact: string };
+    collaborator: Record<"type" | "kind" | "status" | "created" | "updated" | "assetScope" | "sensitivity" | "evidenceStatus" | "aliases" | "relationshipRoles" | "projects" | "collaborationTopics" | "sourceNotes" | "sourceThreads", string>;
+    review: { kind: string; legacyKind: string; status: string; date: string; periodStart: string; periodEnd: string; projects: string; testArtifact: string; metricsAsOf: string; completedActions: string; carryoverEvents: string; waitingActions: string; overdueReviews: string; overdueDeliveries: string };
   };
   states: { action: Record<ActionState, string>; project: Record<Exclude<ProjectStatus, "unknown">, string> };
 }
@@ -35,6 +36,8 @@ export function vaultProfile(): VaultProfile {
       actions: relative(process.env.WORKBENCH_ACTIONS_DIR, "05_Review/Actions", "WORKBENCH_ACTIONS_DIR"),
       projects: relative(process.env.WORKBENCH_PROJECTS_DIR, "03_Topics/项目", "WORKBENCH_PROJECTS_DIR"),
       projectTemplate: relative(process.env.WORKBENCH_PROJECT_TEMPLATE, "98_Templates/项目主页.md", "WORKBENCH_PROJECT_TEMPLATE"),
+      collaborators: relative(process.env.WORKBENCH_COLLABORATORS_DIR, "03_Topics/人物", "WORKBENCH_COLLABORATORS_DIR"),
+      collaboratorTemplate: relative(process.env.WORKBENCH_COLLABORATOR_TEMPLATE, "98_Templates/协作人角色卡.md", "WORKBENCH_COLLABORATOR_TEMPLATE"),
       reviews: {
         daily: relative(process.env.WORKBENCH_DAILY_DIR, "05_Review/Daily", "WORKBENCH_DAILY_DIR"),
         weekly: relative(process.env.WORKBENCH_WEEKLY_DIR, "05_Review/Weekly", "WORKBENCH_WEEKLY_DIR"),
@@ -44,7 +47,8 @@ export function vaultProfile(): VaultProfile {
     properties: {
       action: { id: "action_id", state: "action_state", status: "status", area: "action_area", created: "created", updated: "updated", lastActivity: "last_activity", startOn: "start_on", dueOn: "due_on", scheduledFor: "scheduled_for", reviewOn: "review_on", closedAt: "closed_at", assetScope: "asset_scope", sensitivity: "sensitivity", evidenceStatus: "evidence_status", projects: "projects", workstreams: "workstreams", nextAction: "next_action", completionStandard: "completion_standard", carryoverCount: "carryover_count", sourceNotes: "source_notes", sourceThreads: "source_threads", completionEvidence: "completion_evidence", closedReason: "closed_reason" },
       project: { status: "status" },
-      review: { kind: "daily_kind", legacyKind: "review_kind", status: "status", date: "date", periodStart: "period_start", periodEnd: "period_end", projects: "projects", testArtifact: "test_artifact" },
+      collaborator: { type: "type", kind: "topic_kind", status: "status", created: "created", updated: "updated", assetScope: "asset_scope", sensitivity: "sensitivity", evidenceStatus: "evidence_status", aliases: "aliases", relationshipRoles: "relationship_roles", projects: "projects", collaborationTopics: "collaboration_topics", sourceNotes: "source_notes", sourceThreads: "source_threads" },
+      review: { kind: "daily_kind", legacyKind: "review_kind", status: "status", date: "date", periodStart: "period_start", periodEnd: "period_end", projects: "projects", testArtifact: "test_artifact", metricsAsOf: "metrics_as_of", completedActions: "metric_completed_actions", carryoverEvents: "metric_carryover_events", waitingActions: "metric_waiting_actions", overdueReviews: "metric_overdue_reviews", overdueDeliveries: "metric_overdue_deliveries" },
     },
     states: {
       action: { ready: "ready", in_progress: "in_progress", waiting: "waiting", backlog: "backlog", review: "review", done: "done", cancelled: "cancelled" },

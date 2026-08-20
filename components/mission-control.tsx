@@ -7,19 +7,21 @@ import { NewActionForm } from "@/components/new-action-form";
 import { NewProjectForm } from "@/components/new-project-form";
 import { MissionClock } from "@/components/mission-clock";
 import { ReviewConsole } from "@/components/review-console";
+import { CollaboratorBoard } from "@/components/collaborator-board";
 import { TaskBoard } from "@/components/task-board";
 import { VaultIssuesNotice } from "@/components/vault-issues-notice";
 import { deliverySignals, sortProjectActions, taskDateSummary, type DeliverySignals } from "@/lib/task-board";
 import { clientTimeZone } from "@/lib/vault-profile";
 import { type ActionRecord, type ProjectSummary, type ReviewPeriod, type WorkbenchSnapshot } from "@/lib/types";
 
-type View = "command" | "tasks" | "projects" | "daily" | "weekly" | "monthly";
+type View = "command" | "tasks" | "projects" | "collaborators" | "daily" | "weekly" | "monthly";
 type Theme = "dark" | "light";
 
 const NAV: Array<{ id: View; label: string; icon: CyberIconName }> = [
   { id: "command", label: "今日驾驶舱", icon: "nav-command" },
   { id: "tasks", label: "任务看板", icon: "nav-tasks" },
   { id: "projects", label: "项目看板", icon: "nav-projects" },
+  { id: "collaborators", label: "协作人", icon: "project-radar" },
   { id: "daily", label: "日报", icon: "nav-daily" },
   { id: "weekly", label: "周报", icon: "nav-weekly" },
   { id: "monthly", label: "月报", icon: "nav-monthly" },
@@ -155,6 +157,7 @@ export function MissionControl() {
           {!loading && !error && view === "command" ? <CommandDeck inProgress={inProgress} todayTasks={todayTasks} overdue={overdue} delivery={delivery} waiting={waiting} review={review} backlog={backlog} projects={projects} onOpen={setSelected} onViewChange={setView} /> : null}
           {!loading && !error && view === "tasks" ? <TaskBoard actions={actions} onOpen={setSelected} /> : null}
           {!loading && !error && view === "projects" ? <ProjectBoard projects={projects} writeEnabled={writeEnabled} onOpen={setSelected} onCreate={() => setNewProjectOpen(true)} onNewAction={(project) => { setNewActionProject(project); setNewOpen(true); }} /> : null}
+          {!loading && !error && view === "collaborators" ? <CollaboratorBoard projects={projects} writeEnabled={writeEnabled} /> : null}
           {!loading && !error && (view === "daily" || view === "weekly" || view === "monthly") ? <ReviewConsole key={view} period={view as ReviewPeriod} vaultName={snapshot?.vaultName ?? ""} /> : null}
         </section>
       </section>

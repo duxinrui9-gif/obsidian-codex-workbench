@@ -14,7 +14,8 @@ export type AssetScope = "personal" | "organization" | "project" | "brand";
 export type ReviewPeriod = "daily" | "weekly" | "monthly";
 export type ReviewKind = "plan" | "report";
 export type ProjectStatus = "active" | "review" | "archived" | "ignored" | "unknown";
-export type VaultIssueKind = "action" | "project" | "review";
+export type CollaboratorStatus = ProjectStatus;
+export type VaultIssueKind = "action" | "project" | "review" | "collaborator";
 
 export interface VaultIssue {
   kind: VaultIssueKind;
@@ -84,8 +85,38 @@ export interface ReviewRecord {
   periodStart: string;
   periodEnd: string;
   projects: string[];
+  metrics: ReviewMetrics | null;
   isLegacy: boolean;
   body?: string;
+}
+
+export interface ReviewMetrics {
+  asOf: string;
+  completedActions: number | null;
+  carryoverEvents: number | null;
+  waitingActions: number | null;
+  overdueReviews: number | null;
+  overdueDeliveries: number | null;
+}
+
+export interface CollaboratorRecord {
+  id: string;
+  title: string;
+  relativePath: string;
+  version: string;
+  status: CollaboratorStatus;
+  created: string;
+  updated: string;
+  assetScope: AssetScope;
+  sensitivity: string;
+  evidenceStatus: string;
+  aliases: string[];
+  relationshipRoles: string[];
+  projects: string[];
+  collaborationTopics: string[];
+  sourceNotes: string[];
+  sourceThreads: string[];
+  body: string;
 }
 
 export interface HealthResponse {
@@ -115,6 +146,12 @@ export interface ReviewIndexResponse {
   issues: VaultIssue[];
 }
 
+export interface CollaboratorIndexResponse {
+  collaborators: CollaboratorRecord[];
+  issues: VaultIssue[];
+  available: boolean;
+}
+
 export interface CreateActionInput {
   title: string;
   actionArea: ActionArea;
@@ -134,6 +171,26 @@ export interface CreateProjectInput {
   successCriteria: string;
   nextAction: string;
   targetDate?: string;
+}
+
+export interface CreateCollaboratorInput {
+  name: string;
+  aliases?: string[];
+  relationshipRoles: string[];
+  projects?: string[];
+  collaborationTopics?: string[];
+  sourceNotes?: string[];
+  sourceThreads?: string[];
+}
+
+export interface CollaboratorPatch {
+  expectedVersion: string;
+  aliases?: string[];
+  relationshipRoles?: string[];
+  projects?: string[];
+  collaborationTopics?: string[];
+  sourceNotes?: string[];
+  sourceThreads?: string[];
 }
 
 export interface ActionPatch {
