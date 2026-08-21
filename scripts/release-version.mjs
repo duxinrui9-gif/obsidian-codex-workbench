@@ -80,6 +80,7 @@ export function assertReleaseContract(root = repoRoot, tag = "") {
   const changelog = parseChangelog(readFileSync(changelogPath(root), "utf8"));
   const release = changelog.releases.find((section) => section.version === version);
   if (!release) throw new Error(`package.json 版本 ${version} 缺少对应 CHANGELOG 段落`);
+  if (changelog.releases[0]?.version !== version) throw new Error(`package.json 版本 ${version} 必须等于 CHANGELOG.md 的最新正式版本`);
   if (tag) {
     const match = tagPattern.exec(tag);
     if (!match) throw new Error(`标签必须是稳定的 vX.Y.Z：${tag}`);
@@ -130,7 +131,7 @@ export function releaseNotes(root = repoRoot, version = "") {
 
 export function releaseWorktreeIssues(status) {
   const lines = status.replace(/\s+$/u, "").split("\n").filter(Boolean);
-  return lines.filter((line) => line.slice(3) !== "next-env.d.ts");
+  return lines.filter((line) => line.slice(0, 2) !== " M" || line.slice(3) !== "next-env.d.ts");
 }
 
 function assertReleaseWorktree(root = repoRoot) {

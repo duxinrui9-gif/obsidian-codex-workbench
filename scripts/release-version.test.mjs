@@ -24,12 +24,15 @@ test("accepts stable SemVer and orders versions", () => {
 test("allows only the generated Next route reference in a release worktree", () => {
   assert.deepEqual(releaseWorktreeIssues(" M next-env.d.ts\n"), []);
   assert.deepEqual(releaseWorktreeIssues(" M package.json\n M next-env.d.ts\n"), [" M package.json"]);
+  assert.deepEqual(releaseWorktreeIssues("M  next-env.d.ts\n"), ["M  next-env.d.ts"]);
 });
 
 test("rejects inconsistent version contracts and malformed changelogs", () => {
   const root = fixture();
   try {
     assert.throws(() => assertReleaseContract(root, "v0.2.1"), /不一致/);
+    writeFileSync(join(root, "CHANGELOG.md"), "# Changelog\n\n## Unreleased\n\n## v0.2.0 — 2026-08-21\n\n- New release.\n\n## v0.1.0 — 2026-08-14\n\n- First release.\n");
+    assert.throws(() => assertReleaseContract(root), /最新正式版本/);
     assert.throws(() => parseChangelog("# Changelog\n\n## Unreleased\n\n## Unreleased\n"), /只能包含一个/);
     assert.throws(() => parseChangelog("# Changelog\n\n## Unreleased\n\n## v0.1.0 — 2026-02-31\n\n- Invalid.\n"), /发布日期无效/);
   } finally { dispose(root); }
