@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Upgraded Next.js and YAML to patched releases, added a production dependency audit gate, and self-hosted the Aldrich font with its OFL provenance and checksum.
+- Serialized task creation sequence allocation, retried safe external filename collisions, and return `ACTION_CREATE_CONFLICT` without overwriting Vault files when recovery is exhausted.
+- Made risk cockpit entries open an explicit task-board filter with counts, clearing, and overdue review dates instead of losing the originating context.
+- Hardened report loading against stale responses, removed duplicate leading titles, completed report/calendar semantics, and standardized tab keyboard behavior and Obsidian vault/file URIs.
+- Added synthetic Playwright coverage for report races, risk filters, keyboard tabs, focus restoration, offline resources, readable text, and desktop-width overflow; CI now installs Chromium and retains failure artifacts.
 - Added frozen report metrics, period metadata, in-report outlines, evidence labels, project filtering, and horizontal reading support for long report tables while retaining legacy reports unchanged.
 - Added the lazy-loaded Collaborators section with safe role-card reading, search/filtering, Obsidian links, and opt-in creation/editing of stable fields only.
 - Updated the Starter Vault report templates, review Bases, collaborator template, and data contract for future reports and role cards.

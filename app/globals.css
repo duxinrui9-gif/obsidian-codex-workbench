@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Aldrich&display=swap");
+@font-face { font-family: "Aldrich"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/aldrich-latin.woff2") format("woff2"); }
 
 :root { --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem; --space-7: 3rem; --ink: oklch(91% .012 242); --muted: oklch(68% .018 242); --line: oklch(36% .024 242); --surface-0: oklch(16% .022 242); --surface-1: oklch(20% .025 242); --surface-2: oklch(24% .027 242); --amber: oklch(78% .14 80); --amber-ink: oklch(29% .07 80); --danger: oklch(66% .17 25); --success: oklch(72% .13 145); --wait: oklch(72% .13 55); --review: oklch(74% .11 300); --backlog: oklch(65% .035 242); --shadow: oklch(5% .02 242 / .45); color-scheme: dark; }
 
@@ -6,7 +6,8 @@
 
 * { box-sizing: border-box; }
 html { background: var(--surface-0); }
-body { margin: 0; min-width: 1280px; background: var(--surface-0); color: var(--ink); font: 400 1rem/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+body { margin: 0; min-width: 0; background: var(--surface-0); color: var(--ink); font: 400 1rem/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+@media (max-width: 1279px) { body { min-width: 1280px; } }
 button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
@@ -73,6 +74,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .project-panel, .completed-project { content-visibility: auto; contain-intrinsic-size: auto 22rem; }
 .task-scroll-controls { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; min-height: 1.65rem; color: var(--muted); font: .72rem Aldrich, sans-serif; }.task-scroll-controls .icon-button { width: 1.65rem; height: 1.4rem; padding: 0; border: 1px solid var(--line); background: var(--surface-1); color: var(--ink); cursor: pointer; }.task-scroll-controls .icon-button:disabled { opacity: .4; cursor: not-allowed; }
 .task-status-view { grid-template-rows: 1.65rem 1rem minmax(0, 1fr); height: calc(100vh - 14.35rem); }
+.task-status-view:has(.task-filter) { grid-template-rows: 2rem 1.65rem 1rem minmax(0, 1fr); height: calc(100vh - 16.35rem); }.task-filter { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 2rem; padding: .3rem .55rem; border: 1px solid var(--review); background: color-mix(in oklch, var(--review), var(--surface-1) 92%); color: var(--ink); font-size: max(11px, .72rem); }
+.task-status-view:has(.task-filter) .board-column .task-date { display: block; text-align: left; }
+.brand small, .eyebrow, .sidebar-foot, .sidebar-foot small, .clock span, .counter, .next-action small, .feed-head, .risk-matrix small, .task-date { font-size: 11px !important; }.clock .mission-clock { font-size: 1.35rem !important; }
+.task-index, .state, .board-column header small, .drawer-status, .task-scroll-controls, .vault-issues li span, .readonly-mode, .review-metrics small, .review-outline strong, .evidence-tag, .task-calendar-legend, .task-calendar-day .task-calendar-count, .task-calendar-project header span, .calendar-weekdays, .calendar-day span, .radar-row span:not(.radar-pin), .radar-row em, .collaborator-card em, .collaborator-status { font-size: 11px !important; }
 .task-horizontal-scroll:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .sidebar nav button[aria-current="page"] { box-shadow: inset .18rem 0 var(--amber); }
 .sidebar-foot, .sidebar-foot small, .calendar-weekdays, .calendar-day span, .radar-row span:not(.radar-pin), .radar-row em { font-size: max(.68rem, 11px); }

@@ -19,5 +19,11 @@ const text = [
   "| --- | --- | --- |",
   ...rows,
   "",
+  "## Vendored assets",
+  "",
+  "| Asset | Version | License | Source |",
+  "| --- | --- | --- | --- |",
+  "| Aldrich Latin WOFF2 | v22 | SIL Open Font License 1.1 | Google Fonts; see `public/fonts/README.md` and `public/fonts/Aldrich-OFL.txt` |",
+  "",
 ].join("\n");
 writeFileSync(resolve(root, "THIRD_PARTY_NOTICES.md"), text, "utf8");

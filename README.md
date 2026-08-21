@@ -38,11 +38,13 @@ scripts/bootstrap.sh --vault "$HOME/Documents/My Obsidian Starter" --apply --ins
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
+pnpm test:e2e # 需要先完成 pnpm build；只使用 tests/fixtures/e2e-vault
+pnpm security:check
 pnpm release:check
 python3 packages/obsidian-skills/verify.py
 ```
 
-真实 Vault、`.env.local`、`.workbench-data`、构建产物、日志和浏览器状态均被 Git 忽略，不能进入提交或发布包。
+工作台自托管 Aldrich 字体，不在运行时请求 Google Fonts；其 OFL 许可证、来源和校验值位于 `public/fonts/`。真实 Vault、`.env.local`、`.workbench-data`、构建产物、日志和浏览器状态均被 Git 忽略，不能进入提交或发布包。
 
 ## English quick start
 

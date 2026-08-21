@@ -24,6 +24,9 @@ jobs:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck && pnpm lint && pnpm test && pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: pnpm security:check
       - run: pnpm release:check
       - run: node scripts/generate-third-party-notices.mjs && git diff --exit-code -- THIRD_PARTY_NOTICES.md
       - run: python3 -m pip install --disable-pip-version-check -r packages/obsidian-skills/requirements-optional.txt
@@ -32,3 +35,12 @@ jobs:
       - run: python3 -m unittest discover -s packages/obsidian-skills/skills/obsidian-ingest/scripts -p 'test_*.py'
       - run: python3 -m unittest discover -s packages/obsidian-skills/skills/obsidian-health-check/scripts -p 'test_*.py'
       - run: python3 packages/obsidian-skills/skills/obsidian-health-check/scripts/audit_vault.py --vault starter-vault --fail-on warning
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore

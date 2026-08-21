@@ -311,6 +311,10 @@ async function withActionWriteLock<T>(id: string, operation: () => Promise<T>): 
   }
 }
 
+async function withActionCreateLock<T>(operation: () => Promise<T>): Promise<T> {
+  return withActionWriteLock("__action-create__", operation);
+}
+
 async function writeMutation(
   id: string,
   expectedVersion: string,
@@ -435,19 +439,28 @@ export async function createAction(input: CreateActionInput): Promise<ActionReco
   validateDeliveryWindow(input.startOn ?? "", input.dueOn ?? "");
   if (input.scheduledFor) assertIsoDate(input.scheduledFor, "计划日期");
   const fields = vaultProfile().properties.action;
-  const directory = await safeDirectory(vaultProfile().paths.actions);
-  const files = await markdownFiles(vaultProfile().paths.actions);
-  const prefix = `ACT-${today().replaceAll("-", "")}-`;
-  const sequence = Math.max(0, ...files.map((file) => Number(path.basename(file).match(new RegExp(`^${prefix}(\\d{3})`))?.[1] ?? 0))) + 1;
-  const id = `${prefix}${String(sequence).padStart(3, "0")}`;
-  const state: ActionState = input.scheduledFor ? "ready" : "backlog";
-  const scope = input.assetScope ? validateScope(input.assetScope) : actionArea === "project" ? "project" : "personal";
-  const project = input.project?.trim() ? [toWikiProject(input.project.trim())] : [];
-  const content = `---\ntype: action\n${fields.status}: active\n${fields.id}: ${id}\n${fields.state}: ${actionStateToSource(state)}\n${fields.area}: ${actionArea}\n${fields.created}: ${today()}\n${fields.updated}: ${today()}\n${fields.lastActivity}: ${today()}\n${fields.startOn}: ${input.startOn ?? ""}\n${fields.dueOn}: ${input.dueOn ?? ""}\n${fields.scheduledFor}: ${input.scheduledFor ?? ""}\n${fields.reviewOn}: \"\"\n${fields.closedAt}: \"\"\n${fields.assetScope}: ${scope}\n${fields.sensitivity}: restricted\n${fields.evidenceStatus}: inferred\n${fields.projects}: ${JSON.stringify(project)}\n${fields.workstreams}: ${JSON.stringify((input.workstreams ?? []).filter(Boolean))}\n${fields.nextAction}: ${JSON.stringify(nextAction)}\n${fields.completionStandard}: ${JSON.stringify(completionStandard)}\n${fields.carryoverCount}: 0\n${fields.sourceNotes}: []\n${fields.sourceThreads}: []\n${fields.completionEvidence}: []\n${fields.closedReason}: \"\"\nmigration_batch: action-ledger-web-mvp\n---\n\n# ${title}\n\n## 状态记录\n\n| 日期 | 状态 | 记录 |\n| --- | --- | --- |\n| ${today()} | ${actionStateToSource(state)} | 通过 Vibe Mission Control 新建事项。 |\n`;
-  const file = path.join(directory, `${id} ${title}.md`);
-  await fs.writeFile(file, content, { encoding: "utf8", flag: "wx" });
-  const root = await vaultRoot();
-  return parseAction(content, file, root);
+  return withActionCreateLock(async () => {
+    const directory = await safeDirectory(vaultProfile().paths.actions);
+    const state: ActionState = input.scheduledFor ? "ready" : "backlog";
+    const scope = input.assetScope ? validateScope(input.assetScope) : actionArea === "project" ? "project" : "personal";
+    const project = input.project?.trim() ? [toWikiProject(input.project.trim())] : [];
+    const prefix = `ACT-${today().replaceAll("-", "")}-`;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const files = await markdownFiles(vaultProfile().paths.actions);
+      const sequence = Math.max(0, ...files.map((file) => Number(path.basename(file).match(new RegExp(`^${prefix}(\\d{3})`))?.[1] ?? 0))) + 1;
+      const id = `${prefix}${String(sequence).padStart(3, "0")}`;
+      const content = `---\ntype: action\n${fields.status}: active\n${fields.id}: ${id}\n${fields.state}: ${actionStateToSource(state)}\n${fields.area}: ${actionArea}\n${fields.created}: ${today()}\n${fields.updated}: ${today()}\n${fields.lastActivity}: ${today()}\n${fields.startOn}: ${input.startOn ?? ""}\n${fields.dueOn}: ${input.dueOn ?? ""}\n${fields.scheduledFor}: ${input.scheduledFor ?? ""}\n${fields.reviewOn}: \"\"\n${fields.closedAt}: \"\"\n${fields.assetScope}: ${scope}\n${fields.sensitivity}: restricted\n${fields.evidenceStatus}: inferred\n${fields.projects}: ${JSON.stringify(project)}\n${fields.workstreams}: ${JSON.stringify((input.workstreams ?? []).filter(Boolean))}\n${fields.nextAction}: ${JSON.stringify(nextAction)}\n${fields.completionStandard}: ${JSON.stringify(completionStandard)}\n${fields.carryoverCount}: 0\n${fields.sourceNotes}: []\n${fields.sourceThreads}: []\n${fields.completionEvidence}: []\n${fields.closedReason}: \"\"\nmigration_batch: action-ledger-web-mvp\n---\n\n# ${title}\n\n## 状态记录\n\n| 日期 | 状态 | 记录 |\n| --- | --- | --- |\n| ${today()} | ${actionStateToSource(state)} | 通过 Vibe Mission Control 新建事项。 |\n`;
+      const file = path.join(directory, `${id} ${title}.md`);
+      try {
+        await fs.writeFile(file, content, { encoding: "utf8", flag: "wx" });
+        const root = await vaultRoot();
+        return parseAction(content, file, root);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      }
+    }
+    throw new AppError("新建事项编号发生并发冲突，请稍后重试。", 409, "ACTION_CREATE_CONFLICT");
+  });
 }
 
 async function projectTemplate(): Promise<string> {

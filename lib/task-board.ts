@@ -25,6 +25,21 @@ export interface DeliverySignals {
   overdueDelivery: ActionRecord[];
 }
 
+export type TaskBoardFilter = "overdue_review" | "waiting" | "review" | "backlog";
+
+export const TASK_BOARD_FILTER_LABEL: Record<TaskBoardFilter, string> = {
+  overdue_review: "逾期复查",
+  waiting: "等待事项",
+  review: "待确认事项",
+  backlog: "Backlog 事项",
+};
+
+export function filterTaskBoardActions(actions: ActionRecord[], filter: TaskBoardFilter | null, today: string): ActionRecord[] {
+  if (!filter) return actions;
+  if (filter === "overdue_review") return actions.filter((action) => Boolean(action.reviewOn && action.reviewOn < today));
+  return actions.filter((action) => action.actionState === filter);
+}
+
 export function actionProject(action: ActionRecord): string {
   const value = action.projects[0] ?? "未归类";
   return value.replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].split("/").pop() ?? value;

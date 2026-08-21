@@ -54,6 +54,9 @@ function main() {
   for (const item of required) {
     try { assertFile(resolve(starter, item)); } catch (error) { failures.push(error.message); }
   }
+  for (const item of ["public/fonts/aldrich-latin.woff2", "public/fonts/Aldrich-OFL.txt", "public/fonts/README.md"]) {
+    try { assertFile(resolve(root, item)); } catch (error) { failures.push(error.message); }
+  }
   const action = readFileSync(resolve(starter, "98_Templates/待办事项.md"), "utf8");
   for (const key of ["action_state", "next_action", "completion_standard", "start_on", "due_on", "scheduled_for", "review_on", "carryover_count", "completion_evidence", "source_threads"]) {
     if (!action.includes(`${key}:`)) failures.push(`action template lacks ${key}`);
@@ -74,6 +77,8 @@ function main() {
   }
   const profile = readFileSync(resolve(root, "lib/vault-profile.ts"), "utf8");
   if (!profile.includes('WORKBENCH_WRITE_ENABLED === "true"')) failures.push("workbench write gate is not explicit opt-in");
+  const fontReadme = readFileSync(resolve(root, "public/fonts/README.md"), "utf8");
+  if (!fontReadme.includes("SHA-256") || !fontReadme.includes("Google Fonts")) failures.push("Aldrich font provenance is incomplete");
 
   if (failures.length) {
     console.error("Release verification failed:");

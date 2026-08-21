@@ -5,6 +5,8 @@ node_modules/
 .imports/
 .playwright-cli/
 coverage/
+playwright-report/
+test-results/
 *.log
 *.tsbuildinfo
 .DS_Store

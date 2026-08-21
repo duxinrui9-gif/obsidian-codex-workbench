@@ -164,6 +164,14 @@ describe("Vault adapter", () => {
     expect(raw).toContain("已确认并完成");
   });
 
+  it("serializes concurrent action creation without overwriting a filename", async () => {
+    const base = { title: "并发新建事项", actionArea: "personal" as const, nextAction: "验证编号", completionStandard: "两个文件都存在" };
+    const created = await Promise.all([createAction(base), createAction(base)]);
+    expect(new Set(created.map((item) => item.id)).size).toBe(2);
+    const files = await fs.readdir(path.join(temporaryVault, "05_Review/Actions"));
+    expect(files.filter((file) => file.includes("并发新建事项"))).toHaveLength(2);
+  });
+
   it("keeps legacy dates empty and validates delivery-window edits", async () => {
     const legacyPath = path.join(temporaryVault, "05_Review/Actions/ACT-20260813-002 历史任务.md");
     const fixtureRaw = await fs.readFile(path.join(temporaryVault, "05_Review/Actions/ACT-20260813-001 测试任务.md"), "utf8");
