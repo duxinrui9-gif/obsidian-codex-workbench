@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- Fixed tag-triggered release verification to explicitly fetch and inspect the annotated tag before validating its `main` ancestry.
+
 ## v0.2.0 — 2026-08-21
 
 - Upgraded Next.js and YAML to patched releases, added a production dependency audit gate, and self-hosted the Aldrich font with its OFL provenance and checksum.
