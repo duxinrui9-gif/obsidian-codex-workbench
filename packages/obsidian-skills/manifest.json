@@ -35,7 +35,7 @@
     },
     {
       "path": "skills/obsidian-health-check/SKILL.md",
-      "sha256": "3f9dc08d1522712f0756281a79254224f9c2d002b52bb8930f2f1e1ff30b2968"
+      "sha256": "8cdc8b04588b1cb9c7397bdb18d56cf23732dbd2e6854b0c6f544024266762a6"
     },
     {
       "path": "skills/obsidian-health-check/agents/openai.yaml",
@@ -43,15 +43,15 @@
     },
     {
       "path": "skills/obsidian-health-check/references/health-contract.md",
-      "sha256": "ba84315475248190246a4473dae6a6de236b97093d65a7cb346eb64218ed2008"
+      "sha256": "01dcadf6f61ccfd5c2609f7a1c5cc50342b933921ee28ae512eaa36b35ca7783"
     },
     {
       "path": "skills/obsidian-health-check/scripts/audit_vault.py",
-      "sha256": "42c039e81dad2704aacf3d83327da1b634c02699f07c7d0d2a42c77dc4ab69ea"
+      "sha256": "3c8fb8326d6fb49926d97e6e3b3a8b29a45e677523f8c45d25d1e908fac1b921"
     },
     {
       "path": "skills/obsidian-health-check/scripts/test_audit_vault.py",
-      "sha256": "37cc0c4a8b8c9c2483d22a1fe88bdfab3eda778e5f59a3bfa92d0b7be42b5039"
+      "sha256": "62fbed71f292d7629247151d907f120d086421d3af590bc1f88ce43732db3e15"
     },
     {
       "path": "skills/obsidian-ingest/SKILL.md",

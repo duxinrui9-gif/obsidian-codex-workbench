@@ -2,7 +2,7 @@
 
 ## Current State
 
-公开仓库基线仍为 [`v0.1.0`](https://github.com/duxinrui9-gif/obsidian-codex-workbench/releases/tag/v0.1.0)；待发布功能分支为 `feat/workbench-reports-collaborators`，最新准备提交为 `c6da252`（2026-08-21）。应用从仓库根目录以 `pnpm dev` 启动，默认只读并只绑定 `127.0.0.1`。它读取用户明确配置的 Vault，可从模板创建项目，并安全创建、更新和流转 `05_Review/Actions` 中的任务卡。
+远端 `main` 包含当前工作台功能；[`v0.1.0`](https://github.com/duxinrui9-gif/obsidian-codex-workbench/releases/tag/v0.1.0) 仍是最近发布标签，尚未创建新 Release。应用从仓库根目录以 `pnpm dev` 启动，默认只读并只绑定 `127.0.0.1`。它读取用户明确配置的 Vault，可从模板创建项目，并安全创建、更新和流转 `05_Review/Actions` 中的任务卡。
 
 首页通过 `GET /api/workbench` 获取一次任务/项目快照。单个任务、项目或报告文件损坏时跳过并显示可打开的 Obsidian 降级告警；Vault 根目录或项目目录不可访问时才整体失败。任务的 `start_on`、`due_on`、`scheduled_for` 与 `review_on` 已完整接入：交付窗口在日历中按自然日连续显示，同日多个日期角色合并为一张任务卡，繁忙日期按项目和紧迫度组织。
 
@@ -13,13 +13,13 @@
 - 2026-08-14：以全新公开 Git 历史发布工作台、统一 Starter Vault、四个 Codex Skill、安装脚本和 CI。
 - 写入门禁改为严格 opt-in：仅 `WORKBENCH_WRITE_ENABLED=true` 可写；缺失、`false` 或其他值均只读。
 - pnpm 11 的运行时要求为 Node.js 22.13+；CI 使用 Node 22 和 Python 3.11。
-- 2026-08-16：`87dfec1` 新增任务交付窗口字段、验证和 Starter Vault 契约；`1a83909` 将窗口展开为连续日历并按项目/紧迫度组织繁忙日期。
-- 2026-08-21：`4c7b024` 新增协作人角色卡的惰性读取与受限写入，扩展报告冻结指标、报告目录/筛选/证据标签，并同步未来报告模板与 Starter Vault。
-- 2026-08-21：`c6da252` 同步健康检查 Skill 的公开包 manifest 哈希；完整 Skill 包校验恢复通过。
+- 2026-08-16：新增任务交付窗口字段、真实日期验证与连续任务日历，忙碌日期按项目和紧迫度组织。
+- 2026-08-21：新增协作人角色卡的惰性读取与受限写入；报告阅读器支持冻结指标、目录、项目筛选与证据标签，并同步未来报告模板与 Starter Vault。
+- 2026-08-21：补齐合成日报、周报、月报示例与周期复盘 playbook；打包的 `obsidian-health-check` 现在校验角色卡契约、任务窗口顺序、可选报告指标和可用模板。
 
 ## Open Items
 
-- 该功能分支尚未推送；创建草稿 PR 后不自动合并或发布。
+- 保持 `WORKBENCH_WRITE_ENABLED=false`，直到在临时 Vault 中验证映射和写入流程，并获得用户明确授权。
 
 ## Risks / Notes
 
@@ -43,7 +43,7 @@
 
 ## Verification
 
-2026-08-21 已通过 `pnpm typecheck && pnpm lint && pnpm test && pnpm build`（39 项测试）、`pnpm release:check`、Skill 包校验（4 个 Skill、27 个打包文件）与 Starter Vault 健康审计（0 error）。在真实配置 Vault 的只读模式下，已验证协作人读取与报告索引，不对真实 Vault 发起协作人写入。2026-08-14 的 [GitHub Actions CI](https://github.com/duxinrui9-gif/obsidian-codex-workbench/actions/runs/31816048170) 与发布包 SHA-256 仍对应 `v0.1.0` 基线。
+2026-08-21 已通过完整 TypeScript、lint、测试、构建、发布检查、Skill manifest/包校验及 Starter Vault 健康审计。在真实配置 Vault 的只读模式下，仅验证协作人读取与报告索引，不对真实 Vault 发起协作人写入。`v0.1.0` 的发布包 SHA-256 仅对应该历史标签；主分支后续改动尚未发布为新版本。
 
 ## History
 

@@ -111,6 +111,8 @@ action_area: project
 created: 2026-08-08
 updated: {updated}
 last_activity: 2026-08-08
+start_on: {start_on}
+due_on: {due_on}
 scheduled_for: {scheduled_for}
 review_on: {review_on}
 closed_at: {closed_at}
@@ -130,6 +132,26 @@ migration_batch: action-ledger-v1
 ---
 
 # Action
+"""
+
+COLLABORATOR = """---
+type: topic
+topic_kind: collaborator_reference
+status: {status}
+created: 2026-08-15
+updated: 2026-08-15
+asset_scope: personal
+sensitivity: restricted
+evidence_status: observed
+aliases: ["Example collaborator"]
+relationship_roles: {relationship_roles}
+projects: {projects}
+collaboration_topics: {collaboration_topics}
+source_notes: []
+source_threads: []
+---
+
+# Example collaborator
 """
 
 DAILY_ACTION_PLAN = """---
@@ -1063,6 +1085,8 @@ No performance threshold is supplied.
             "action_id": action_id,
             "action_state": "ready",
             "updated": "2026-08-08",
+            "start_on": "",
+            "due_on": "",
             "scheduled_for": "2026-08-10",
             "review_on": "",
             "closed_at": "",
@@ -1074,6 +1098,18 @@ No performance threshold is supplied.
         values.update(overrides)
         path = vault / f"05_Review/Actions/{action_id} Action.md"
         write_note(path, ACTION.format(**values))
+        return path
+
+    def write_collaborator(self, vault: Path, **overrides: str) -> Path:
+        values = {
+            "status": "active",
+            "relationship_roles": '["project collaborator"]',
+            "projects": "[]",
+            "collaboration_topics": '["review cadence"]',
+        }
+        values.update(overrides)
+        path = vault / "03_Topics/人物/Example collaborator.md"
+        write_note(path, COLLABORATOR.format(**values))
         return path
 
     def test_action_contract_accepts_valid_action(self) -> None:
@@ -1090,7 +1126,7 @@ No performance threshold is supplied.
             vault = Path(temporary)
             invalid = ACTION.format(
                 status="active", action_id="bad", action_state="unknown", updated="2026-08-08",
-                scheduled_for="", review_on="", closed_at="", next_action="", carryover_count="-1",
+                start_on="", due_on="", scheduled_for="", review_on="", closed_at="", next_action="", carryover_count="-1",
                 completion_evidence="[]", closed_reason="",
             ).replace("completion_standard: a clear result\n", "")
             write_note(vault / "05_Review/Actions/bad Action.md", invalid)
@@ -1113,6 +1149,53 @@ No performance threshold is supplied.
             self.assertIn("closed_action_requires_closed_at", reasons)
             self.assertIn("closed_action_requires_closed_reason", reasons)
             self.assertIn("done_action_requires_completion_evidence", reasons)
+
+    def test_action_delivery_window_must_be_ordered(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_action(vault, start_on="2026-08-12", due_on="2026-08-11")
+            report, status = self.run_audit(vault, "warning", "--note-type", "action")
+            self.assertEqual(status, 1)
+            self.assertTrue(any(item["reason"] == "action_start_on_after_due_on" for item in report["semantic_issues"]))
+
+    def test_collaborator_contract_accepts_valid_role_card(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_collaborator(vault)
+            report, status = self.run_audit(vault, "warning", "--note-type", "topic")
+            self.assertEqual(status, 0)
+            self.assertEqual(report["missing_properties"], [])
+            self.assertEqual(report["semantic_issues"], [])
+
+    def test_collaborator_contract_requires_role_association_and_known_status(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_collaborator(vault, status="complete", relationship_roles="[]", projects="[]", collaboration_topics="[]")
+            report, status = self.run_audit(vault, "warning", "--note-type", "topic")
+            self.assertEqual(status, 1)
+            self.assertTrue(any(item["reason"] == "invalid_collaborator_status" for item in report["invalid_property_values"]))
+            reasons = {item["reason"] for item in report["semantic_issues"]}
+            self.assertIn("collaborator_requires_relationship_role", reasons)
+            self.assertIn("collaborator_requires_project_or_topic", reasons)
+
+    def test_report_metrics_are_optional_but_validate_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            legacy = vault / "05_Review/Weekly/Report/legacy.md"
+            write_note(legacy, WEEKLY_REVIEW)
+            report, status = self.run_audit(vault, "warning", "--note-type", "review")
+            self.assertEqual(status, 0)
+
+            invalid = WEEKLY_REVIEW.replace(
+                "source_notes: []",
+                "source_notes: []\nmetrics_as_of: 2026-02-31\nmetric_completed_actions: -1\nmetric_carryover_events: invalid\nmetric_waiting_actions:\nmetric_overdue_reviews: 0\nmetric_overdue_deliveries: 0",
+            )
+            write_note(legacy, invalid)
+            report, status = self.run_audit(vault, "warning", "--note-type", "review")
+            self.assertEqual(status, 1)
+            invalid_metrics = {item["property"] for item in report["invalid_property_values"] if item["reason"] == "report_metric_must_be_nonnegative_integer"}
+            self.assertEqual(invalid_metrics, {"metric_completed_actions", "metric_carryover_events"})
+            self.assertTrue(any(item["property"] == "metrics_as_of" for item in report["invalid_property_values"]))
 
     def test_action_contract_rejects_duplicate_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
