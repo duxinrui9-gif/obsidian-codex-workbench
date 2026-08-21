@@ -46,6 +46,20 @@ python3 packages/obsidian-skills/verify.py
 
 工作台自托管 Aldrich 字体，不在运行时请求 Google Fonts；其 OFL 许可证、来源和校验值位于 `public/fonts/`。真实 Vault、`.env.local`、`.workbench-data`、构建产物、日志和浏览器状态均被 Git 忽略，不能进入提交或发布包。
 
+## 发布版本
+
+`package.json` 是唯一版本来源，正式标签使用稳定的 `vX.Y.Z`。`PATCH` 用于兼容性修复、依赖安全和文档；`MINOR` 用于向后兼容的新功能或可选数据字段；进入稳定契约后的破坏性变更使用 `MAJOR`。`0.x` 阶段的破坏性变更必须在 Changelog 中明确说明。
+
+准备正式版本时，在除生成的 `next-env.d.ts` 外干净的工作树中执行：
+
+```bash
+pnpm release:prepare -- 0.2.0
+pnpm release:check
+pnpm release:build
+```
+
+审阅并提交版本元数据后，经 PR 合并到 `main`。在合并提交创建注解标签 `v0.2.0` 并推送；标签工作流会重复完整门禁、生成两个 ZIP 和 `SHA256SUMS.txt`，先以草稿 Release 上传资产，核对后再发布为 Latest。失败时不移动或重写标签；瞬时故障可重跑，代码问题使用新的补丁版本。
+
 ## English quick start
 
 1. Install Node 22.13+ and pnpm 11.
