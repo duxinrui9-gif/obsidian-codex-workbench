@@ -1,9 +1,10 @@
 import { AppError } from "@/lib/errors";
-import type { ActionArea, ActionPatch, AssetScope, CollaboratorPatch, CreateActionInput, CreateCollaboratorInput, CreateProjectInput, TransitionInput } from "@/lib/types";
+import type { ActionArea, ActionPatch, AssetScope, CollaboratorPatch, CreateActionInput, CreateCollaboratorInput, CreateProjectInput, ProjectTransitionInput, TransitionInput } from "@/lib/types";
 
 const AREAS: ActionArea[] = ["project", "personal", "knowledge", "candidate"];
 const SCOPES: AssetScope[] = ["personal", "organization", "project", "brand"];
 const TRANSITIONS: TransitionInput["transition"][] = ["start", "wait", "schedule", "carryover", "complete", "cancel"];
+const PROJECT_TRANSITIONS: ProjectTransitionInput["transition"][] = ["archive", "restore"];
 
 function invalid(message: string): never { throw new AppError(message, 422, "INVALID_INPUT"); }
 function record(value: unknown): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) invalid("请求体必须是 JSON 对象。"); return value as Record<string, unknown>; }
@@ -19,3 +20,4 @@ export async function parseCreateCollaborator(request: Request): Promise<CreateC
 export async function parseCollaboratorPatch(request: Request): Promise<CollaboratorPatch> { const input = await jsonObject(request); const patch: CollaboratorPatch = { expectedVersion: required(input, "expectedVersion", "版本号") }; for (const key of ["aliases", "relationshipRoles", "projects", "collaborationTopics", "sourceNotes", "sourceThreads"] as const) { const value = strings(input, key); if (value !== undefined) patch[key] = value; } return patch; }
 export async function parseActionPatch(request: Request): Promise<ActionPatch> { const input = await jsonObject(request); const patch: ActionPatch = { expectedVersion: required(input, "expectedVersion", "版本号") }; if (input.actionArea !== undefined) patch.actionArea = enumValue(input.actionArea, AREAS, "任务范围"); if (input.assetScope !== undefined) patch.assetScope = enumValue(input.assetScope, SCOPES, "资产范围"); for (const key of ["nextAction", "completionStandard", "startOn", "dueOn", "scheduledFor", "reviewOn"] as const) { const value = optionalString(input, key); if (value !== undefined) patch[key] = value; } patch.projects = strings(input, "projects"); patch.workstreams = strings(input, "workstreams"); return patch; }
 export async function parseTransition(request: Request): Promise<TransitionInput> { const input = await jsonObject(request); return { expectedVersion: required(input, "expectedVersion", "版本号"), transition: enumValue(input.transition, TRANSITIONS, "状态操作"), note: optionalString(input, "note"), reviewOn: optionalString(input, "reviewOn"), scheduledFor: optionalString(input, "scheduledFor") }; }
+export async function parseProjectTransition(request: Request): Promise<ProjectTransitionInput> { const input = await jsonObject(request); return { expectedVersion: required(input, "expectedVersion", "版本号"), transition: enumValue(input.transition, PROJECT_TRANSITIONS, "项目状态操作") }; }

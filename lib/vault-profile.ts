@@ -22,7 +22,7 @@ export interface VaultProfile {
   paths: { actions: string; projects: string; projectTemplate: string; collaborators: string; collaboratorTemplate: string; reviews: Record<ReviewPeriod, string> };
   properties: {
     action: Record<"id" | "state" | "status" | "area" | "created" | "updated" | "lastActivity" | "startOn" | "dueOn" | "scheduledFor" | "reviewOn" | "closedAt" | "assetScope" | "sensitivity" | "evidenceStatus" | "projects" | "workstreams" | "nextAction" | "completionStandard" | "carryoverCount" | "sourceNotes" | "sourceThreads" | "completionEvidence" | "closedReason", string>;
-    project: { status: string };
+    project: { status: string; updated: string };
     collaborator: Record<"type" | "kind" | "status" | "created" | "updated" | "assetScope" | "sensitivity" | "evidenceStatus" | "aliases" | "relationshipRoles" | "projects" | "collaborationTopics" | "sourceNotes" | "sourceThreads", string>;
     review: { kind: string; legacyKind: string; status: string; date: string; periodStart: string; periodEnd: string; projects: string; testArtifact: string; metricsAsOf: string; completedActions: string; carryoverEvents: string; waitingActions: string; overdueReviews: string; overdueDeliveries: string };
   };
@@ -46,7 +46,7 @@ export function vaultProfile(): VaultProfile {
     },
     properties: {
       action: { id: "action_id", state: "action_state", status: "status", area: "action_area", created: "created", updated: "updated", lastActivity: "last_activity", startOn: "start_on", dueOn: "due_on", scheduledFor: "scheduled_for", reviewOn: "review_on", closedAt: "closed_at", assetScope: "asset_scope", sensitivity: "sensitivity", evidenceStatus: "evidence_status", projects: "projects", workstreams: "workstreams", nextAction: "next_action", completionStandard: "completion_standard", carryoverCount: "carryover_count", sourceNotes: "source_notes", sourceThreads: "source_threads", completionEvidence: "completion_evidence", closedReason: "closed_reason" },
-      project: { status: "status" },
+      project: { status: "status", updated: "updated" },
       collaborator: { type: "type", kind: "topic_kind", status: "status", created: "created", updated: "updated", assetScope: "asset_scope", sensitivity: "sensitivity", evidenceStatus: "evidence_status", aliases: "aliases", relationshipRoles: "relationship_roles", projects: "projects", collaborationTopics: "collaboration_topics", sourceNotes: "source_notes", sourceThreads: "source_threads" },
       review: { kind: "daily_kind", legacyKind: "review_kind", status: "status", date: "date", periodStart: "period_start", periodEnd: "period_end", projects: "projects", testArtifact: "test_artifact", metricsAsOf: "metrics_as_of", completedActions: "metric_completed_actions", carryoverEvents: "metric_carryover_events", waitingActions: "metric_waiting_actions", overdueReviews: "metric_overdue_reviews", overdueDeliveries: "metric_overdue_deliveries" },
     },

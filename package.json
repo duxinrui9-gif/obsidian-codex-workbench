@@ -1,6 +1,6 @@
 {
   "name": "vibe-mission-control",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@11.15.1",
   "engines": {
@@ -18,7 +18,10 @@
     "vault:inspect": "node scripts/inspect-vault.mjs",
     "package:codex": "node scripts/package-codex.mjs",
     "verify": "node scripts/verify-release.mjs",
-    "release:check": "pnpm verify && pnpm security:check && bash -n scripts/bootstrap.sh scripts/build-release.sh",
+    "release:prepare": "node scripts/release-version.mjs prepare",
+    "release:verify": "node scripts/release-version.mjs check",
+    "release:notes": "node scripts/release-version.mjs notes",
+    "release:check": "pnpm verify && pnpm release:verify && node --test scripts/release-version.test.mjs && pnpm security:check && bash -n scripts/bootstrap.sh scripts/build-release.sh",
     "release:build": "bash scripts/build-release.sh"
   },
   "dependencies": {
