@@ -43,11 +43,11 @@
     },
     {
       "path": "skills/obsidian-health-check/references/health-contract.md",
-      "sha256": "6e6012c9a40d5f3a5caeb998c3086782df370f3e07dce6ab56ef61988c24e5d8"
+      "sha256": "ba84315475248190246a4473dae6a6de236b97093d65a7cb346eb64218ed2008"
     },
     {
       "path": "skills/obsidian-health-check/scripts/audit_vault.py",
-      "sha256": "432bb9770dacfe29c2f1d3e263dee0a37bc10508bdf4ef93d895fe7b436a9da3"
+      "sha256": "42c039e81dad2704aacf3d83327da1b634c02699f07c7d0d2a42c77dc4ab69ea"
     },
     {
       "path": "skills/obsidian-health-check/scripts/test_audit_vault.py",
