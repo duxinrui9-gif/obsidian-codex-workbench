@@ -27,7 +27,7 @@ jobs:
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ "$(git cat-file -t "$TAG")" == "tag" ]]
           tag_commit="$(git rev-list -n 1 "$TAG")"
-          git fetch origin main
+          git fetch origin main:refs/remotes/origin/main
           git merge-base --is-ancestor "$tag_commit" origin/main
           node scripts/release-version.mjs check --tag "$TAG"
       - uses: actions/setup-node@v4

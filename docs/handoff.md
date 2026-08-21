@@ -2,7 +2,7 @@
 
 ## Current State
 
-远端 `main` 包含当前工作台功能；[`v0.1.0`](https://github.com/duxinrui9-gif/obsidian-codex-workbench/releases/tag/v0.1.0) 仍是最近发布标签，尚未创建新 Release。应用从仓库根目录以 `pnpm dev` 启动，默认只读并只绑定 `127.0.0.1`。它读取用户明确配置的 Vault，可从模板创建项目，并安全创建、更新和流转 `05_Review/Actions` 中的任务卡。Aldrich 已改为本地 WOFF2，不再请求第三方字体资源。
+远端 `main` 包含当前工作台功能；`v0.2.0` 是本轮待发布版本，`v0.1.0` 保留为已发布回滚点。应用从仓库根目录以 `pnpm dev` 启动，默认只读并只绑定 `127.0.0.1`。它读取用户明确配置的 Vault，可从模板创建项目，并安全创建、更新和流转 `05_Review/Actions` 中的任务卡。Aldrich 已改为本地 WOFF2，不再请求第三方字体资源。
 
 首页通过 `GET /api/workbench` 获取一次任务/项目快照。单个任务、项目或报告文件损坏时跳过并显示可打开的 Obsidian 降级告警；Vault 根目录或项目目录不可访问时才整体失败。任务的 `start_on`、`due_on`、`scheduled_for` 与 `review_on` 已完整接入：交付窗口在日历中按自然日连续显示，同日多个日期角色合并为一张任务卡，繁忙日期按项目和紧迫度组织。
 
@@ -17,6 +17,7 @@
 - 2026-08-21：新增协作人角色卡的惰性读取与受限写入；报告阅读器支持冻结指标、目录、项目筛选与证据标签，并同步未来报告模板与 Starter Vault。
 - 2026-08-21：补齐合成日报、周报、月报示例与周期复盘 playbook；打包的 `obsidian-health-check` 现在校验角色卡契约、任务窗口顺序、可选报告指标和可用模板。
 - 2026-08-21：安全升级 Next.js/YAML，新增 `security:check`、Playwright 合成 Vault 门禁、风险筛选上下文、任务创建锁、报告请求取消与统一 Obsidian URI。
+- 2026-08-21：建立稳定 SemVer 发布体系。`package.json` 为版本真源；准备命令冻结 Changelog，注解标签工作流验证完整发布门禁、ZIP 资产与 SHA-256 后才发布 GitHub Release。
 
 ## Open Items
 
@@ -40,11 +41,12 @@
 - `lib/vault.ts`：Vault 读取和任务、项目、协作人安全写入。
 - `lib/vault-profile.ts`：目录、字段、时区和只读写入映射。
 - `scripts/bootstrap.sh`：安全创建 Starter Vault 与可选 Skill 安装。
-- `scripts/build-release.sh`：从干净提交生成两个公开发布包。
+- `scripts/release-version.mjs`：校验版本契约、冻结 Changelog 与提取 Release notes。
+- `scripts/build-release.sh`：从版本一致的提交生成两个公开发布包。
 
 ## Verification
 
-2026-08-21 已通过 TypeScript、lint、44 项单元测试、构建、7 项 Playwright、生产依赖审计、发布检查、Skill manifest/包校验及 Starter Vault 健康审计。浏览器测试只读取 `tests/fixtures/e2e-vault`，真实配置 Vault 继续保持只读。`v0.1.0` 的发布包 SHA-256 仅对应该历史标签；主分支后续改动尚未发布为新版本。
+发布前需通过 TypeScript、lint、单元测试、构建、Playwright、生产依赖审计、发布检查、Skill manifest/包校验及 Starter Vault 健康审计。浏览器测试只读取 `tests/fixtures/e2e-vault`，真实配置 Vault 继续保持只读。`v0.1.0` 的发布包 SHA-256 仅对应该历史标签；已发布标签不移动，发布故障以新的补丁版本修复。
 
 ## History
 

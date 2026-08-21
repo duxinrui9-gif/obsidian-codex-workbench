@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## v0.2.0 — 2026-08-21
+
 - Upgraded Next.js and YAML to patched releases, added a production dependency audit gate, and self-hosted the Aldrich font with its OFL provenance and checksum.
 - Serialized task creation sequence allocation, retried safe external filename collisions, and return `ACTION_CREATE_CONFLICT` without overwriting Vault files when recovery is exhausted.
 - Made risk cockpit entries open an explicit task-board filter with counts, clearing, and overdue review dates instead of losing the originating context.
@@ -26,3 +28,7 @@
 - First public release of the local Obsidian workbench, four evidence-aware Codex Skills, and the unified Starter Vault.
 - Made Vault writes explicit opt-in with `WORKBENCH_WRITE_ENABLED=true`.
 - Added public installation, verification, packaging, and GitHub Actions workflows.
+
+[Unreleased]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.1.0...v0.2.0
+[v0.1.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/releases/tag/v0.1.0
