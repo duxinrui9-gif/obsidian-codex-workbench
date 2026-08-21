@@ -53,12 +53,12 @@ python3 packages/obsidian-skills/verify.py
 准备正式版本时，在除生成的 `next-env.d.ts` 外干净的工作树中执行：
 
 ```bash
-pnpm release:prepare -- 0.2.0
+pnpm release:prepare -- X.Y.Z
 pnpm release:check
 pnpm release:build
 ```
 
-审阅并提交版本元数据后，经 PR 合并到 `main`。在合并提交创建注解标签 `v0.2.0` 并推送；标签工作流会重复完整门禁、生成两个 ZIP 和 `SHA256SUMS.txt`，先以草稿 Release 上传资产，核对后再发布为 Latest。失败时不移动或重写标签；瞬时故障可重跑，代码问题使用新的补丁版本。
+审阅并提交版本元数据后，经 PR 合并到 `main`。在合并提交创建匹配的注解标签 `vX.Y.Z` 并推送；标签工作流会重复完整门禁、生成两个 ZIP 和 `SHA256SUMS.txt`，先以草稿 Release 上传资产，核对后再发布为 Latest。失败时不移动或重写标签；瞬时故障可重跑，代码问题使用新的补丁版本。
 
 ## English quick start
 

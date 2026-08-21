@@ -25,9 +25,10 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          [[ "$(git cat-file -t "$TAG")" == "tag" ]]
-          tag_commit="$(git rev-list -n 1 "$TAG")"
-          git fetch origin main:refs/remotes/origin/main
+          git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}" "refs/heads/main:refs/remotes/origin/main"
+          tag_type="$(git cat-file -t "refs/tags/${TAG}")"
+          [[ "$tag_type" == "tag" ]] || { echo "Expected an annotated tag, got $tag_type" >&2; exit 1; }
+          tag_commit="$(git rev-list -n 1 "refs/tags/${TAG}")"
           git merge-base --is-ancestor "$tag_commit" origin/main
           node scripts/release-version.mjs check --tag "$TAG"
       - uses: actions/setup-node@v4

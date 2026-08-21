@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## v0.2.1 — 2026-08-21
+
+- Fixed tag-triggered release verification to explicitly fetch and inspect the annotated tag before validating its `main` ancestry.
+
 ## v0.2.0 — 2026-08-21
 
 - Upgraded Next.js and YAML to patched releases, added a production dependency audit gate, and self-hosted the Aldrich font with its OFL provenance and checksum.
@@ -29,6 +33,7 @@
 - Made Vault writes explicit opt-in with `WORKBENCH_WRITE_ENABLED=true`.
 - Added public installation, verification, packaging, and GitHub Actions workflows.
 
-[Unreleased]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.1...HEAD
+[v0.2.1]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/releases/tag/v0.1.0
