@@ -1,7 +1,11 @@
 import { clientTimeZone } from "@/lib/vault-profile";
 
+export function hkDate(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: clientTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
 export function hkMonth(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: clientTimeZone, year: "numeric", month: "2-digit" }).format(new Date());
+  return hkDate().slice(0, 7);
 }
 
 export function shiftMonth(month: string, amount: number): string {

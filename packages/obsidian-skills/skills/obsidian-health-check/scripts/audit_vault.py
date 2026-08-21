@@ -37,6 +37,9 @@ REQUIRED_BY_TYPE = {
     "ingest_batch": {"status", "created", "updated", "processing_contract", "batch_id", "trigger_mode", "ingest_state", "input_index", "input_count", "source_index", "source_count", "source_complete_count", "source_partial_count", "knowledge_index", "knowledge_count", "unresolved_count", "count_basis", "next_action", "asset_scope", "sensitivity", "evidence_status"},
     "source_manifest": {"status", "created", "updated", "manifest_contract", "source_note", "input_count", "content_hash", "asset_scope", "sensitivity", "evidence_status"},
     "method_dry_run": {"status", "created", "updated", "method_note", "method_version", "dry_run_status", "scenario_kind", "source_notes", "source_count", "output_summary", "known_friction", "asset_scope", "sensitivity", "evidence_status"},
+    # Most topic notes have their own local contracts. The role-card contract
+    # is selected below only when topic_kind identifies a collaborator.
+    "topic": set(),
 }
 SOURCE_V2_REQUIRED = {"source_contract", "source_adapter", "source_role", "coverage_status", "coverage_verified", "source_inputs", "evidence_families"}
 SOURCE_V3_REQUIRED = SOURCE_V2_REQUIRED | {"coverage_check", "semantic_check", "content_unit_scheme"}
@@ -45,7 +48,7 @@ METHOD_V2_REQUIRED = {"evidence_contract", "method_contract", "knowledge_kind", 
 KNOWLEDGE_V2_REQUIRED = {"evidence_contract", "knowledge_kind", "operational_readiness", "evidence_families", "independent_source_count", "applied_validation_count"}
 REVIEW_COMMON_REQUIRED = {"status", "review_period", "date", "created", "updated", "asset_scope", "sensitivity", "evidence_status", "source_notes"}
 DAILY_REVIEW_REQUIRED = {"projects", "source_threads", "has_legacy_plan", "has_legacy_report", "migration_batch"}
-LIST_PROPERTIES = {"projects", "source_threads", "source_notes", "contradicts", "supersedes", "knowledge_used", "playbooks_used", "topics", "tags", "inputs", "outputs", "participants", "source_inputs", "evidence_families", "aliases", "codex_project_labels", "workstreams", "dry_run_notes", "known_friction", "profile_basis", "completion_evidence", "action_items"}
+LIST_PROPERTIES = {"projects", "source_threads", "source_notes", "contradicts", "supersedes", "knowledge_used", "playbooks_used", "topics", "tags", "inputs", "outputs", "participants", "source_inputs", "evidence_families", "aliases", "codex_project_labels", "workstreams", "dry_run_notes", "known_friction", "profile_basis", "completion_evidence", "action_items", "relationship_roles", "collaboration_topics"}
 WIKILINK_RE = re.compile(r"(?P<embed>!)?\[\[([^\]]+)\]\]")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -84,12 +87,15 @@ VALID_VALUES = {
     "action_state": {"ready", "in_progress", "waiting", "backlog", "review", "done", "cancelled"},
     "action_area": {"project", "knowledge", "personal", "candidate"},
 }
-DATE_PROPERTIES = {"created", "updated", "captured", "review_due", "follow_up_due", "published", "last_activity", "scheduled_for", "review_on", "closed_at"}
+DATE_PROPERTIES = {"created", "updated", "captured", "review_due", "follow_up_due", "published", "last_activity", "start_on", "due_on", "scheduled_for", "review_on", "closed_at", "metrics_as_of"}
 NONEMPTY_PROPERTIES = {"status", "created", "updated", "source_kind", "captured", "content_hash", "asset_scope", "sensitivity", "evidence_status", "maturity", "confidence", "review_period", "date", "migration_batch", "action_id", "action_state", "action_area", "last_activity", "completion_standard"}
 BOOLEAN_PROPERTIES = {"has_legacy_plan", "has_legacy_report", "daily_report_enabled", "coverage_verified"}
 ACTION_ID_RE = re.compile(r"^ACT-\d{8}-\d{3}$")
 ACTION_OPEN_STATES = {"ready", "in_progress", "waiting", "backlog", "review"}
 ACTION_CLOSED_STATES = {"done", "cancelled"}
+COLLABORATOR_REQUIRED = {"status", "created", "updated", "asset_scope", "sensitivity", "evidence_status", "aliases", "relationship_roles", "projects", "collaboration_topics", "source_notes", "source_threads"}
+COLLABORATOR_STATUSES = {"active", "review", "archived", "ignored"}
+REPORT_METRIC_COUNT_PROPERTIES = {"metric_completed_actions", "metric_carryover_events", "metric_waiting_actions", "metric_overdue_reviews", "metric_overdue_deliveries"}
 METHOD_V2_HEADINGS = ["方法目标", "适用问题与禁用边界", "输入", "输出物", "直接证据台账", "编者操作设计", "执行流程", "决策表", "完成、暂停与停止条件", "工作模板", "会议案例演示", "风险、失败与恢复", "未知与下一次验证"]
 METHOD_V3_HEADINGS = ["方法目标", "适用问题与禁用边界", "输入", "输出物", "输出物映射", "直接证据台账", "编者操作设计", "执行流程", "决策表", "完成、暂停与停止条件", "工作模板", "会议案例演示", "风险、失败与恢复", "未知与下一次验证"]
 INPUT_HEADERS = ["input_id", "原件或快照", "适配器", "处理范围", "SHA-256", "采集时间", "访问状态"]
@@ -1126,6 +1132,31 @@ def validate_templates(vault: Path, findings: dict[str, list[dict]]) -> None:
         completion = markdown_table(text, "完成、暂停与停止条件")
         if "## 输出物映射" not in text or not completion or completion[0] != STOP_V3_HEADERS:
             issue(findings["template_issues"], "98_Templates/方法卡片.md", "method_template_v3_structure_invalid")
+    workbench_templates = {
+        "98_Templates/待办事项.md": {"type": "action", "start_on": None, "due_on": None, "scheduled_for": None, "review_on": None},
+        "98_Templates/协作人角色卡.md": {"type": "topic", "topic_kind": "collaborator_reference", "aliases": None, "relationship_roles": None, "projects": None, "collaboration_topics": None, "source_notes": None, "source_threads": None},
+        "98_Templates/每日日报.md": {"type": "review", "review_period": "daily", "daily_kind": "report", "metrics_as_of": None, **{field: None for field in REPORT_METRIC_COUNT_PROPERTIES}},
+        "98_Templates/周复盘.md": {"type": "review", "review_period": "weekly", "review_kind": "report", "metrics_as_of": None, **{field: None for field in REPORT_METRIC_COUNT_PROPERTIES}},
+        "98_Templates/每月报告.md": {"type": "review", "review_period": "monthly", "review_kind": "report", "metrics_as_of": None, **{field: None for field in REPORT_METRIC_COUNT_PROPERTIES}},
+    }
+    for relative, expected in workbench_templates.items():
+        path = vault / relative
+        if not path.is_file():
+            continue
+        try:
+            frontmatter, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
+        except (OSError, FrontmatterError) as error:
+            issue(findings["template_issues"], relative, type(error).__name__)
+            continue
+        missing = sorted(field for field in expected if field not in frontmatter)
+        mismatched = sorted(field for field, value in expected.items() if value is not None and as_text(frontmatter.get(field)) != value)
+        if missing:
+            issue(findings["template_issues"], relative, "workbench_template_missing_properties", missing=missing)
+        if mismatched:
+            issue(findings["template_issues"], relative, "workbench_template_defaults_invalid", fields=mismatched)
+        for list_field in {"aliases", "relationship_roles", "projects", "collaboration_topics", "source_notes", "source_threads"} & set(expected):
+            if list_field in frontmatter and not isinstance(frontmatter[list_field], list):
+                issue(findings["template_issues"], relative, "workbench_template_requires_inline_list", property=list_field)
 
 
 def main() -> int:
@@ -1220,6 +1251,8 @@ def main() -> int:
             migration_batch = as_text(frontmatter.get("migration_batch"))
             if migration_batch in {"native-daily-plan-v3", "native-daily-report-v3", "native-weekly-plan-v2", "native-weekly-report-v2"}:
                 required.add("action_items")
+        elif note_type == "topic" and as_text(frontmatter.get("topic_kind")) == "collaborator_reference":
+            required = COLLABORATOR_REQUIRED
         else:
             required = REQUIRED_BY_TYPE.get(note_type, set())
         if not required:
@@ -1314,6 +1347,25 @@ def main() -> int:
                     raise ValueError
             except ValueError:
                 issue(findings["invalid_property_values"], relative, "carryover_count_must_be_nonnegative_integer")
+            start_on = as_text(frontmatter.get("start_on"))
+            due_on = as_text(frontmatter.get("due_on"))
+            if start_on and due_on and is_valid_date(start_on) and is_valid_date(due_on) and start_on > due_on:
+                issue(findings["semantic_issues"], relative, "action_start_on_after_due_on", start_on=start_on, due_on=due_on)
+        if note_type == "topic" and as_text(frontmatter.get("topic_kind")) == "collaborator_reference":
+            status = as_text(frontmatter.get("status"))
+            if status and status not in COLLABORATOR_STATUSES:
+                issue(findings["invalid_property_values"], relative, "invalid_collaborator_status", status=status)
+            if not frontmatter.get("relationship_roles"):
+                issue(findings["semantic_issues"], relative, "collaborator_requires_relationship_role")
+            if not frontmatter.get("projects") and not frontmatter.get("collaboration_topics"):
+                issue(findings["semantic_issues"], relative, "collaborator_requires_project_or_topic")
+        if note_type == "review":
+            for field in REPORT_METRIC_COUNT_PROPERTIES & set(frontmatter):
+                value = frontmatter.get(field)
+                if value_is_empty(value):
+                    continue
+                if not isinstance(value, str) or not re.fullmatch(r"\d+", value.strip()):
+                    issue(findings["invalid_property_values"], relative, "report_metric_must_be_nonnegative_integer", property=field)
         if note_type == "knowledge":
             status = as_text(frontmatter.get("status"))
             if relative.startswith("02_Knowledge/方法/") and status == "archived":

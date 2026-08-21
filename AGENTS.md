@@ -8,3 +8,4 @@ This repository packages a local Obsidian workbench, four Codex Skills, and a re
 - The workbench is local-only. Keep its server bound to `127.0.0.1`; do not add hosting, login, telemetry, timers, or file watchers without explicit approval.
 - Treat `starter-vault` as a template. Do not add personal projects, historical reports, or real source material to it.
 - Validate code, Starter contracts, Skill manifests, and the privacy scan before a release. Do not silently delete user notes or replace installed Skills.
+- `pnpm dev` and `pnpm build` can switch the generated route reference in `next-env.d.ts`; preserve a running developer's version and never stage that transient diff with feature work.

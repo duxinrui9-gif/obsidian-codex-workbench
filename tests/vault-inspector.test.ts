@@ -17,7 +17,7 @@ describe("Vault inspector", () => {
     const { stdout } = await run(process.execPath, ["scripts/inspect-vault.mjs", `--vault=${vault}`], { cwd: process.cwd() });
     expect(stdout).not.toContain(vault);
     expect(stdout).not.toContain("测试夹具。");
-    expect(JSON.parse(stdout)).toMatchObject({ markdownFiles: 5, truncated: false, frontmatterKeys: { action_id: 1 } });
+    expect(JSON.parse(stdout)).toMatchObject({ markdownFiles: 7, truncated: false, frontmatterKeys: { action_id: 1 } });
   });
 
   it("reports malformed frontmatter and bounded scans", async () => {

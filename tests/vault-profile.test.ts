@@ -3,7 +3,7 @@ import { AppError } from "../lib/errors";
 import { assertWriteEnabled } from "../lib/security";
 import { actionStateFromSource, actionStateToSource, projectStatusFromSource, vaultProfile, workbenchWriteEnabled } from "../lib/vault-profile";
 
-const PROFILE_ENV = ["WORKBENCH_WRITE_ENABLED", "WORKBENCH_TIME_ZONE", "NEXT_PUBLIC_WORKBENCH_TIME_ZONE", "WORKBENCH_ACTIONS_DIR", "WORKBENCH_PROJECTS_DIR", "WORKBENCH_PROJECT_TEMPLATE", "WORKBENCH_DAILY_DIR", "WORKBENCH_WEEKLY_DIR", "WORKBENCH_MONTHLY_DIR"] as const;
+const PROFILE_ENV = ["WORKBENCH_WRITE_ENABLED", "WORKBENCH_TIME_ZONE", "NEXT_PUBLIC_WORKBENCH_TIME_ZONE", "WORKBENCH_ACTIONS_DIR", "WORKBENCH_PROJECTS_DIR", "WORKBENCH_PROJECT_TEMPLATE", "WORKBENCH_COLLABORATORS_DIR", "WORKBENCH_COLLABORATOR_TEMPLATE", "WORKBENCH_DAILY_DIR", "WORKBENCH_WEEKLY_DIR", "WORKBENCH_MONTHLY_DIR"] as const;
 const saved = new Map(PROFILE_ENV.map((key) => [key, process.env[key]]));
 
 afterEach(() => { for (const key of PROFILE_ENV) { const value = saved.get(key); if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
@@ -13,6 +13,7 @@ describe("Vault profile", () => {
     const profile = vaultProfile();
     expect(profile.paths.actions).toBe("05_Review/Actions");
     expect(profile.paths.projects).toBe("03_Topics/项目");
+    expect(profile.paths.collaborators).toBe("03_Topics/人物");
     expect(actionStateFromSource("in_progress")).toBe("in_progress");
     expect(actionStateToSource("done")).toBe("done");
     expect(projectStatusFromSource("archived")).toBe("archived");

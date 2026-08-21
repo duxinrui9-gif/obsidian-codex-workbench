@@ -21,6 +21,10 @@ function hkTomorrow(): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+function deliveryWindowError(startOn: string, dueOn: string): string {
+  return startOn && dueOn && startOn > dueOn ? "开始日期不能晚于交付日期。" : "";
+}
+
 export function ActionDrawer({ action, projects, writeEnabled, onClose, onSaved }: Props) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -73,9 +77,14 @@ function DrawerContent({ action, projects, writeEnabled, onClose, onSaved, title
 
   function saveDetails() {
     setDetailsError("");
+    const windowError = deliveryWindowError(draft.startOn, draft.dueOn);
+    if (windowError) {
+      showDetailsError(windowError);
+      return;
+    }
     void request(`/api/actions/${draft.id}`, "PATCH", {
       expectedVersion: draft.version, actionArea: draft.actionArea, projects: projectName ? [projectName] : [], workstreams: draft.workstreams,
-      nextAction: draft.nextAction, completionStandard: draft.completionStandard, scheduledFor: draft.scheduledFor, reviewOn: draft.reviewOn, assetScope: draft.assetScope,
+      nextAction: draft.nextAction, completionStandard: draft.completionStandard, startOn: draft.startOn, dueOn: draft.dueOn, scheduledFor: draft.scheduledFor, reviewOn: draft.reviewOn, assetScope: draft.assetScope,
     }, showDetailsError);
   }
 
@@ -113,7 +122,7 @@ function DrawerContent({ action, projects, writeEnabled, onClose, onSaved, title
   return <>
     <div className="drawer-head"><div><p className="eyebrow">ACTION FILE / {draft.id}</p><h2 id={titleId}>{draft.title}</h2></div><button ref={closeRef} className="icon-button" type="button" onClick={onClose} aria-label="关闭任务详情"><CyberIcon name="close" /></button></div>
     <div className="drawer-status"><span className={`state state-${draft.actionState}`}><CyberIcon name={`state-${draft.actionState.replace("_", "-")}` as "state-in-progress" | "state-ready" | "state-waiting" | "state-review" | "state-backlog" | "state-done" | "state-cancelled"} />{draft.actionState}</span><span>{draft.status === "active" ? "ACTIVE FILE" : "ARCHIVED FILE"}</span></div>
-    {draft.status === "archived" || !writeEnabled ? <div className="action-readonly"><p className="eyebrow">{writeEnabled ? "CLOSED / READ ONLY" : "VAULT VALIDATION / READ ONLY"}</p><dl><div><dt>所属项目</dt><dd>{projectName || "未归类"}</dd></div><div><dt>当前状态</dt><dd>{draft.actionState}</dd></div><div><dt>{draft.status === "archived" ? "关闭说明" : "下一动作"}</dt><dd>{draft.status === "archived" ? draft.closedReason || "未记录" : draft.nextAction || "未记录"}</dd></div></dl>{!writeEnabled ? <p className="quiet">完成临时 Vault 验证后，将 WORKBENCH_WRITE_ENABLED 设为 true 才能修改任务。</p> : null}</div> : <>
+    {draft.status === "archived" || !writeEnabled ? <div className="action-readonly"><p className="eyebrow">{writeEnabled ? "CLOSED / READ ONLY" : "VAULT VALIDATION / READ ONLY"}</p><dl><div><dt>所属项目</dt><dd>{projectName || "未归类"}</dd></div><div><dt>当前状态</dt><dd>{draft.actionState}</dd></div><div><dt>执行窗口</dt><dd>始 {draft.startOn || "未设置"} · 交 {draft.dueOn || "未设置"}</dd></div><div><dt>具体计划</dt><dd>{draft.scheduledFor || "未设置"}</dd></div><div><dt>{draft.status === "archived" ? "关闭说明" : "下一动作"}</dt><dd>{draft.status === "archived" ? draft.closedReason || "未记录" : draft.nextAction || "未记录"}</dd></div></dl>{!writeEnabled ? <p className="quiet">完成临时 Vault 验证后，将 WORKBENCH_WRITE_ENABLED 设为 true 才能修改任务。</p> : null}</div> : <>
       <section className="transition-bay" aria-labelledby={`${titleId}-transitions`}>
         <p id={`${titleId}-transitions`} className="eyebrow">STATUS CHANGE</p>
         {quickActions}
@@ -126,7 +135,8 @@ function DrawerContent({ action, projects, writeEnabled, onClose, onSaved, title
         <label>工作流（用逗号分隔）<input value={draft.workstreams.join("，")} onChange={(event) => update("workstreams", event.target.value.split(/[，,]/).map((item) => item.trim()).filter(Boolean))} /></label>
         <label>下一动作<textarea value={draft.nextAction} onChange={(event) => update("nextAction", event.target.value)} /></label>
         <label>完成标准<textarea value={draft.completionStandard} onChange={(event) => update("completionStandard", event.target.value)} /></label>
-        <div className="field-grid"><label>计划日期<input type="date" value={draft.scheduledFor} onChange={(event) => update("scheduledFor", event.target.value)} /></label><label>复查日期<input type="date" value={draft.reviewOn} onChange={(event) => update("reviewOn", event.target.value)} /></label></div>
+        <fieldset className="date-window"><legend>执行窗口</legend><div className="date-window-grid"><label>开始日期<input type="date" value={draft.startOn} onChange={(event) => update("startOn", event.target.value)} /></label><label>交付日期<input type="date" value={draft.dueOn} onChange={(event) => update("dueOn", event.target.value)} /></label><label>计划日期<input type="date" value={draft.scheduledFor} onChange={(event) => update("scheduledFor", event.target.value)} /></label></div></fieldset>
+        <label>复查日期<input type="date" value={draft.reviewOn} onChange={(event) => update("reviewOn", event.target.value)} /></label>
         <details><summary>高级设置</summary><label>资产范围<select value={draft.assetScope} onChange={(event) => update("assetScope", event.target.value as ActionRecord["assetScope"])}><option value="project">项目</option><option value="personal">个人</option><option value="organization">组织</option><option value="brand">品牌</option></select></label></details>
         {detailsError ? <p ref={detailsErrorRef} className="form-error" role="alert" tabIndex={-1}>{detailsError}</p> : null}
         <button className="button primary full" type="button" disabled={saving} onClick={saveDetails}><CyberIcon name="save" />{saving ? "正在保存…" : "保存任务资料"}</button>

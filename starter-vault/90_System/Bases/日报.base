@@ -22,6 +22,18 @@ properties:
     displayName: 项目
   action_items:
     displayName: 待办
+  metrics_as_of:
+    displayName: 指标截至
+  metric_completed_actions:
+    displayName: 完成事项
+  metric_carryover_events:
+    displayName: 结转事件
+  metric_waiting_actions:
+    displayName: 等待事项
+  metric_overdue_reviews:
+    displayName: 逾期复查
+  metric_overdue_deliveries:
+    displayName: 逾期交付
   updated:
     displayName: 更新日期
 views:

@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppError } from "../lib/errors";
 import { assertIsoDate, assertLocalRequest, assertSafeId } from "../lib/security";
-import { createAction, createProject, getAction, getReview, patchAction, readActions, readActionsWithIssues, readProjects, readProjectsWithIssues, readReviews, readReviewsWithIssues, readWorkbenchSnapshot, transitionAction } from "../lib/vault";
+import { createAction, createCollaborator, createProject, getAction, getCollaborator, getReview, patchAction, patchCollaborator, readActions, readActionsWithIssues, readCollaboratorsWithIssues, readProjects, readProjectsWithIssues, readReviews, readReviewsWithIssues, readWorkbenchSnapshot, transitionAction } from "../lib/vault";
 
 let temporaryVault = "";
 const fixture = path.join(process.cwd(), "tests", "fixtures", "vault");
@@ -19,6 +19,8 @@ beforeEach(async () => {
   delete process.env.WORKBENCH_ACTIONS_DIR;
   delete process.env.WORKBENCH_PROJECTS_DIR;
   delete process.env.WORKBENCH_PROJECT_TEMPLATE;
+  delete process.env.WORKBENCH_COLLABORATORS_DIR;
+  delete process.env.WORKBENCH_COLLABORATOR_TEMPLATE;
   delete process.env.WORKBENCH_DAILY_DIR;
   delete process.env.WORKBENCH_WEEKLY_DIR;
   delete process.env.WORKBENCH_MONTHLY_DIR;
@@ -34,6 +36,7 @@ describe("Vault adapter", () => {
     const [actions, reviews, projects] = await Promise.all([readActions(), readReviews("daily"), readProjects()]);
     expect(actions).toHaveLength(1);
     expect(actions[0].title).toBe("测试任务");
+    expect(actions[0]).toMatchObject({ startOn: "2026-08-13", dueOn: "2026-08-15", scheduledFor: "2026-08-13" });
     expect(actions[0].projects).toEqual(["[[03_Topics/项目/测试项目]]"]);
     expect(reviews).toHaveLength(2);
     const report = reviews.find((review) => review.kind === "report");
@@ -129,9 +132,10 @@ describe("Vault adapter", () => {
   });
 
   it("creates and transitions a task with lifecycle guards", async () => {
-    const created = await createAction({ title: "新建测试任务", actionArea: "project", project: "测试项目", workstreams: ["MVP"], nextAction: "开始验证", completionStandard: "形成结果", scheduledFor: "2026-08-14" });
+    const created = await createAction({ title: "新建测试任务", actionArea: "project", project: "测试项目", workstreams: ["MVP"], nextAction: "开始验证", completionStandard: "形成结果", startOn: "2026-08-14", dueOn: "2026-08-18", scheduledFor: "2026-08-14" });
     expect(created.id).toMatch(/^ACT-\d{8}-\d{3}$/);
     expect(created.actionState).toBe("ready");
+    expect(created).toMatchObject({ startOn: "2026-08-14", dueOn: "2026-08-18" });
     await expect(transitionAction(created.id, { expectedVersion: created.version, transition: "wait", reviewOn: "2026-08-15", note: "不允许" })).rejects.toMatchObject({ code: "INVALID_STATE_TRANSITION" });
     await expect(transitionAction(created.id, { expectedVersion: created.version, transition: "complete", note: "不允许" })).rejects.toMatchObject({ code: "INVALID_STATE_TRANSITION" });
     const running = await transitionAction(created.id, { expectedVersion: created.version, transition: "start" });
@@ -139,6 +143,7 @@ describe("Vault adapter", () => {
     const carriedToSchedule = await transitionAction(running.id, { expectedVersion: running.version, transition: "carryover", scheduledFor: "2026-08-16" });
     expect(carriedToSchedule.actionState).toBe("ready");
     expect(carriedToSchedule.scheduledFor).toBe("2026-08-16");
+    expect(carriedToSchedule).toMatchObject({ startOn: "2026-08-14", dueOn: "2026-08-18" });
     expect(carriedToSchedule.carryoverCount).toBe(1);
     const carriedToBacklog = await transitionAction(carriedToSchedule.id, { expectedVersion: carriedToSchedule.version, transition: "carryover" });
     expect(carriedToBacklog.actionState).toBe("backlog");
@@ -159,6 +164,23 @@ describe("Vault adapter", () => {
     expect(raw).toContain("已确认并完成");
   });
 
+  it("keeps legacy dates empty and validates delivery-window edits", async () => {
+    const legacyPath = path.join(temporaryVault, "05_Review/Actions/ACT-20260813-002 历史任务.md");
+    const fixtureRaw = await fs.readFile(path.join(temporaryVault, "05_Review/Actions/ACT-20260813-001 测试任务.md"), "utf8");
+    await fs.writeFile(legacyPath, fixtureRaw.replace("ACT-20260813-001", "ACT-20260813-002").replace("# 测试任务", "# 历史任务").replace("start_on: 2026-08-13\ndue_on: 2026-08-15\n", ""));
+    expect(await getAction("ACT-20260813-002")).toMatchObject({ startOn: "", dueOn: "" });
+
+    const current = await getAction("ACT-20260813-001");
+    await expect(patchAction(current.id, { expectedVersion: current.version, startOn: "2026-08-20", dueOn: "2026-08-18" })).rejects.toMatchObject({ status: 422, code: "INVALID_INPUT" });
+    const latest = await getAction(current.id);
+    const patched = await patchAction(latest.id, { expectedVersion: latest.version, startOn: "2026-08-14", dueOn: "2026-08-18" });
+    expect(patched).toMatchObject({ startOn: "2026-08-14", dueOn: "2026-08-18" });
+    const cleared = await patchAction(patched.id, { expectedVersion: patched.version, startOn: "", dueOn: "" });
+    expect(cleared).toMatchObject({ startOn: "", dueOn: "" });
+    const after = await getAction(cleared.id);
+    await expect(patchAction(after.id, { expectedVersion: after.version, startOn: "2026-02-31" })).rejects.toMatchObject({ status: 422, code: "INVALID_INPUT" });
+  });
+
   it("creates a complete project page and exposes zero-task projects", async () => {
     const project = await createProject({ name: "新项目", goal: "完成项目初始化", successCriteria: "形成可执行首页", nextAction: "建立第一张任务卡", targetDate: "2026-08-20" });
     expect(project.activeCount).toBe(0);
@@ -173,6 +195,34 @@ describe("Vault adapter", () => {
     expect((await readProjects()).find((item) => item.name === "新项目")?.activeCount).toBe(0);
     await expect(createProject({ name: "新项目", goal: "重复", successCriteria: "重复", nextAction: "重复" })).rejects.toMatchObject({ code: "PROJECT_EXISTS" });
     await expect(createProject({ name: "../越界", goal: "非法", successCriteria: "非法", nextAction: "非法" })).rejects.toMatchObject({ code: "INVALID_PROJECT_NAME" });
+  });
+
+  it("reads, creates, and safely edits collaborator role cards", async () => {
+    const initial = await readCollaboratorsWithIssues();
+    expect(initial).toMatchObject({ available: true });
+    expect(initial.items[0]).toMatchObject({ title: "测试协作人", relationshipRoles: ["项目顾问"] });
+    const existing = initial.items[0];
+    const patched = await patchCollaborator(existing.id, { expectedVersion: existing.version, aliases: ["新别名"], relationshipRoles: ["策略顾问"], collaborationTopics: ["增长策略"] });
+    expect(patched.aliases).toEqual(["新别名"]);
+    expect(await fs.readFile(path.join(temporaryVault, existing.relativePath), "utf8")).toContain("这段正文必须被编辑保留。");
+    await expect(patchCollaborator(existing.id, { expectedVersion: existing.version, aliases: ["冲突"] })).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
+    const created = await createCollaborator({ name: "新协作人", relationshipRoles: ["合作伙伴"], projects: ["测试项目"] });
+    expect(created).toMatchObject({ title: "新协作人", status: "active", assetScope: "personal", sensitivity: "restricted" });
+    await expect(createCollaborator({ name: "新协作人", relationshipRoles: ["合作伙伴"], projects: ["测试项目"] })).rejects.toMatchObject({ code: "COLLABORATOR_EXISTS" });
+    await expect(createCollaborator({ name: "../越界", relationshipRoles: ["合作伙伴"], projects: ["测试项目"] })).rejects.toMatchObject({ code: "INVALID_COLLABORATOR_NAME" });
+    await expect(createCollaborator({ name: "缺少上下文", relationshipRoles: ["合作伙伴"] })).rejects.toMatchObject({ code: "COLLABORATOR_CONTEXT_REQUIRED" });
+    const raw = await getCollaborator(created.id);
+    await expect(patchCollaborator(raw.id, { expectedVersion: raw.version, projects: [], collaborationTopics: [] })).rejects.toMatchObject({ code: "COLLABORATOR_CONTEXT_REQUIRED" });
+  });
+
+  it("degrades invalid frozen metrics without hiding the report", async () => {
+    const report = path.join(temporaryVault, "05_Review/Daily/2026-08/Report/2026-08-13.md");
+    const raw = await fs.readFile(report, "utf8");
+    await fs.writeFile(report, raw.replace("status: complete", "status: complete\nmetric_completed_actions: -1"));
+    const reviews = await readReviewsWithIssues("daily");
+    expect(reviews.items).toHaveLength(2);
+    expect(reviews.issues).toContainEqual(expect.objectContaining({ code: "INVALID_REVIEW_METRIC" }));
+    expect(reviews.items.find((item) => item.kind === "report")?.metrics).toBeNull();
   });
 
   it("rejects project creation when the template is unavailable", async () => {

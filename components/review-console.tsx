@@ -1,64 +1,47 @@
 "use client";
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { Children, isValidElement, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { CyberIcon } from "@/components/cyber-icon";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ReviewKind, ReviewPeriod, ReviewRecord } from "@/lib/types";
+import type { ReviewIndexResponse, ReviewKind, ReviewPeriod, ReviewRecord, VaultIssue } from "@/lib/types";
 import { hkMonth, monthDays, monthLabel, shiftMonth } from "@/lib/calendar";
 import { VaultIssuesNotice } from "@/components/vault-issues-notice";
-import type { ReviewIndexResponse, VaultIssue } from "@/lib/types";
+
+const EVIDENCE_TAGS = new Set(["[已核验]", "[已报告]", "[待验证]"]);
 
 function wikiText(value: string, vaultName: string): string {
-  return value.replace(/<!--[^]*?-->/g, "").replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target: string, label?: string) => {
-    const display = label || target.split("/").pop() || target;
-    return `[${display}](obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(target)})`;
-  });
+  return value.replace(/<!--[^]*?-->/g, "").replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target: string, label?: string) => `[${label || target.split("/").pop() || target}](obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(target)})`);
 }
-
-function initialReview(reviews: ReviewRecord[]): ReviewRecord | null {
-  const latest = reviews.find((review) => review.date);
-  if (!latest) return reviews[0] ?? null;
-  return reviews.find((review) => review.date === latest.date && review.kind === "report") ?? latest;
-}
-
+function initialReview(reviews: ReviewRecord[]): ReviewRecord | null { const latest = reviews.find((review) => review.date); return latest ? reviews.find((review) => review.date === latest.date && review.kind === "report") ?? latest : reviews[0] ?? null; }
+function escaped(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function visibleBody(selected: ReviewRecord | null, body: string): string { return selected ? body.replace(new RegExp(`^#\\s+${escaped(selected.title)}\\s*\\n+`), "") : body; }
+function textOf(node: ReactNode): string { if (typeof node === "string" || typeof node === "number") return String(node); if (Array.isArray(node)) return node.map(textOf).join(""); return isValidElement<{ children?: ReactNode }>(node) ? textOf(node.props.children) : ""; }
+function headingId(value: string): string { return `review-section-${value.trim().toLowerCase().replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, "$2$1").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "section"}`; }
+function outline(body: string): Array<{ level: 2 | 3; label: string; id: string }> { return [...body.matchAll(/^(#{2,3})\s+(.+)$/gm)].map((match) => { const label = match[2].replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, "$2$1").trim(); return { level: match[1].length as 2 | 3, label, id: headingId(label) }; }); }
+function decorateEvidence(children: ReactNode): ReactNode { return Children.map(children, (child, index) => typeof child === "string" ? child.split(/(\[(?:已核验|已报告|待验证)\])/g).map((part, partIndex) => EVIDENCE_TAGS.has(part) ? <span className={`evidence-tag evidence-${part.slice(1, -1)}`} key={`${index}-${partIndex}`}>{part.slice(1, -1)}</span> : part) : child); }
+function projectLabel(value: string): string { return value.replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].split("/").pop() || value; }
 
 function ReviewReader({ selected, body, error, vaultName }: { selected: ReviewRecord | null; body: string; error: string; vaultName: string }) {
-  return <article id="review-reader" className="review-reader" role="tabpanel" aria-labelledby={`review-tab-${selected?.kind ?? "report"}`}>{error ? <p className="form-error" role="alert">{error}</p> : null}{selected ? <><header><p className="eyebrow">READ ONLY / {selected.relativePath}</p><h2>{selected.title}</h2></header><ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={(url) => url.startsWith("obsidian:") ? url : defaultUrlTransform(url)} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}<CyberIcon name="external-link" /></a> }}>{wikiText(body, vaultName)}</ReactMarkdown></> : <div className="empty-state"><strong>选择一份复盘文件</strong><span>报告正文会在这里以只读模式打开。</span></div>}</article>;
+  const display = visibleBody(selected, body);
+  const sections = outline(display);
+  const metrics = selected?.kind === "report" ? selected.metrics : null;
+  const metricItems = metrics ? [["完成", metrics.completedActions], ["结转", metrics.carryoverEvents], ["等待", metrics.waitingActions], ["逾期复查", metrics.overdueReviews], ["逾期交付", metrics.overdueDeliveries]].filter((item): item is [string, number] => item[1] !== null) : [];
+  return <article id="review-reader" className="review-reader" role="tabpanel" aria-labelledby={`review-tab-${selected?.kind ?? "report"}`}>{error ? <p className="form-error" role="alert">{error}</p> : null}{selected ? <><header><p className="eyebrow">READ ONLY / {selected.relativePath}</p><h2>{selected.title}</h2><div className="review-meta"><span>{selected.periodStart && selected.periodEnd ? `${selected.periodStart} — ${selected.periodEnd}` : selected.date || "日期未标注"}</span><span>{selected.status || "未标注状态"}</span><span>{selected.projects.length} 个项目</span>{metrics?.asOf ? <span>指标截至 {metrics.asOf}</span> : null}</div>{metricItems.length ? <div className="review-metrics" aria-label="冻结报告指标">{metricItems.map(([label, value]) => <span key={label}><b>{value}</b>{label}</span>)}</div> : null}{sections.length ? <nav className="review-outline" aria-label="报告目录">{sections.map((section) => <a key={`${section.id}-${section.label}`} className={section.level === 3 ? "nested" : ""} href={`#${section.id}`}>{section.label}</a>)}</nav> : null}</header><ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={(url) => url.startsWith("obsidian:") ? url : defaultUrlTransform(url)} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}<CyberIcon name="external-link" /></a>, p: ({ children }) => <p>{decorateEvidence(children)}</p>, li: ({ children }) => <li>{decorateEvidence(children)}</li>, h2: ({ children }) => <h2 id={headingId(textOf(children))}>{children}</h2>, h3: ({ children }) => <h3 id={headingId(textOf(children))}>{children}</h3> }}>{wikiText(display, vaultName)}</ReactMarkdown></> : <div className="empty-state"><strong>选择一份复盘文件</strong><span>报告正文会在这里以只读模式打开。</span></div>}</article>;
 }
 
 export function ReviewConsole({ period, vaultName }: { period: ReviewPeriod; vaultName: string }) {
-  const [reviews, setReviews] = useState<ReviewRecord[]>([]);
-  const [selected, setSelected] = useState<ReviewRecord | null>(null);
-  const [body, setBody] = useState("");
-  const [kind, setKind] = useState<ReviewKind>("report");
-  const [month, setMonth] = useState(hkMonth);
-  const [error, setError] = useState("");
-  const [issues, setIssues] = useState<VaultIssue[]>([]);
-
+  const [reviews, setReviews] = useState<ReviewRecord[]>([]); const [selected, setSelected] = useState<ReviewRecord | null>(null); const [body, setBody] = useState(""); const [kind, setKind] = useState<ReviewKind>("report"); const [month, setMonth] = useState(hkMonth); const [project, setProject] = useState(""); const [error, setError] = useState(""); const [issues, setIssues] = useState<VaultIssue[]>([]);
   useEffect(() => { void fetch(`/api/reviews?period=${period}`, { cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error("无法读取复盘文件"); return response.json() as Promise<ReviewIndexResponse>; }).then((data) => { const initial = initialReview(data.reviews); setReviews(data.reviews); setIssues(data.issues); setSelected(initial); setKind(initial?.kind ?? "report"); if (period === "daily" && initial?.date) setMonth(initial.date.slice(0, 7)); }).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "无法读取复盘文件")); }, [period]);
   useEffect(() => { if (!selected) return; void fetch(`/api/reviews/${selected.id}`, { cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error("无法读取报告正文"); return response.json() as Promise<ReviewRecord>; }).then((data) => setBody(data.body ?? "")).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "无法读取报告正文")); }, [selected]);
-
-  const filtered = reviews.filter((item) => item.kind === kind);
-  const dailyByDate = useMemo(() => new Map(reviews.filter((review) => review.date).map((review) => [`${review.date}:${review.kind}`, review])), [reviews]);
-  const selectedDate = selected?.date ?? "";
-  const chooseKind = (next: ReviewKind) => {
-    setKind(next);
-    const matching = selectedDate ? dailyByDate.get(`${selectedDate}:${next}`) : undefined;
-    setSelected(matching ?? reviews.find((review) => review.kind === next) ?? null);
-  };
-  const chooseDate = (date: string) => {
-    const review = dailyByDate.get(`${date}:report`) ?? dailyByDate.get(`${date}:plan`);
-    if (review) { setSelected(review); setKind(review.kind); }
-  };
+  const projects = useMemo(() => [...new Set(reviews.flatMap((item) => item.projects.map(projectLabel)))].sort((a, b) => a.localeCompare(b, "zh-Hans-CN")), [reviews]);
+  const visibleReviews = useMemo(() => project ? reviews.filter((item) => item.projects.map(projectLabel).includes(project)) : reviews, [project, reviews]);
+  const filtered = visibleReviews.filter((item) => item.kind === kind); const dailyByDate = useMemo(() => new Map(visibleReviews.filter((review) => review.date).map((review) => [`${review.date}:${review.kind}`, review])), [visibleReviews]); const selectedDate = selected?.date ?? "";
+  const chooseKind = (next: ReviewKind) => { setKind(next); const matching = selectedDate ? dailyByDate.get(`${selectedDate}:${next}`) : undefined; setSelected(matching ?? visibleReviews.find((review) => review.kind === next) ?? null); };
+  const chooseDate = (date: string) => { const review = dailyByDate.get(`${date}:report`) ?? dailyByDate.get(`${date}:plan`); if (review) { setSelected(review); setKind(review.kind); } };
   const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, current: ReviewKind) => { const next = event.key === "Home" ? "report" : event.key === "End" ? "plan" : event.key === "ArrowLeft" || event.key === "ArrowRight" ? current === "report" ? "plan" : "report" : null; if (next) { event.preventDefault(); chooseKind(next); requestAnimationFrame(() => document.getElementById(`review-tab-${next}`)?.focus()); } };
   const kindTabs = (hasReport = true, hasPlan = true) => <div className="tabs" role="tablist" aria-label="报告类型"><button id="review-tab-report" className={kind === "report" ? "active" : ""} onClick={() => chooseKind("report")} onKeyDown={(event) => onTabKey(event, "report")} disabled={!hasReport} role="tab" aria-selected={kind === "report"} aria-controls="review-reader" tabIndex={kind === "report" ? 0 : -1}><CyberIcon name="review-report" />报告</button><button id="review-tab-plan" className={kind === "plan" ? "active" : ""} onClick={() => chooseKind("plan")} onKeyDown={(event) => onTabKey(event, "plan")} disabled={!hasPlan} role="tab" aria-selected={kind === "plan"} aria-controls="review-reader" tabIndex={kind === "plan" ? 0 : -1}><CyberIcon name="review-plan" />规划</button></div>;
-
-  if (period === "daily") {
-    const hasReport = Boolean(selectedDate && dailyByDate.get(`${selectedDate}:report`));
-    const hasPlan = Boolean(selectedDate && dailyByDate.get(`${selectedDate}:plan`));
-    return <><VaultIssuesNotice issues={issues} vaultName={vaultName} /><div className="review-console daily-console"><aside className="review-index daily-index"><div className="calendar-head"><button className="icon-button" onClick={() => setMonth((value) => shiftMonth(value, -1))} aria-label="上个月">‹</button><strong>{monthLabel(month)}</strong><button className="icon-button" onClick={() => setMonth((value) => shiftMonth(value, 1))} aria-label="下个月">›</button></div><div className="calendar-weekdays">{["一", "二", "三", "四", "五", "六", "日"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{monthDays(month).map((date, index) => date ? <button key={date} className={`calendar-day ${date === selectedDate ? "calendar-selected" : ""} ${dailyByDate.has(`${date}:report`) || dailyByDate.has(`${date}:plan`) ? "calendar-active" : ""}`} disabled={!dailyByDate.has(`${date}:report`) && !dailyByDate.has(`${date}:plan`)} onClick={() => chooseDate(date)}><strong>{date.slice(-2)}</strong><span>{dailyByDate.has(`${date}:report`) ? "报" : ""}{dailyByDate.has(`${date}:plan`) ? "规" : ""}</span></button> : <span key={`empty-${index}`} className="calendar-empty" />)}</div>{kindTabs(hasReport, hasPlan)}<p className="quiet">有“报 / 规”标记的日期可打开；同日优先显示报告。</p></aside><ReviewReader selected={selected} body={body} error={error} vaultName={vaultName} /></div></>;
-  }
-
-  return <><VaultIssuesNotice issues={issues} vaultName={vaultName} /><div className="review-console"><aside className="review-index">{kindTabs()}<p className="eyebrow">ORBITAL ARCHIVE / {period.toUpperCase()}</p>{filtered.length ? filtered.map((review) => <button key={review.id} onClick={() => setSelected(review)} className={selected?.id === review.id ? "review-selected" : ""}><strong>{review.title}</strong><small>{review.date || review.periodEnd || "日期未标注"}{review.isLegacy ? " · 历史格式" : ""}</small></button>) : <p className="quiet">此舱位没有可读的{kind === "report" ? "报告" : "规划"}。</p>}</aside><ReviewReader selected={selected} body={body} error={error} vaultName={vaultName} /></div></>;
+  const projectFilter = <label className="review-project-filter">项目筛选<select value={project} onChange={(event) => setProject(event.target.value)}><option value="">全部项目</option>{projects.map((item) => <option key={item}>{item}</option>)}</select></label>;
+  if (period === "daily") { const hasReport = Boolean(selectedDate && dailyByDate.get(`${selectedDate}:report`)); const hasPlan = Boolean(selectedDate && dailyByDate.get(`${selectedDate}:plan`)); return <><VaultIssuesNotice issues={issues} vaultName={vaultName} /><div className="review-console daily-console"><aside className="review-index daily-index"><div className="calendar-head"><button className="icon-button" onClick={() => setMonth((value) => shiftMonth(value, -1))} aria-label="上个月">‹</button><strong>{monthLabel(month)}</strong><button className="icon-button" onClick={() => setMonth((value) => shiftMonth(value, 1))} aria-label="下个月">›</button></div>{projectFilter}<div className="calendar-weekdays">{["一", "二", "三", "四", "五", "六", "日"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{monthDays(month).map((date, index) => date ? <button key={date} className={`calendar-day ${date === selectedDate ? "calendar-selected" : ""} ${dailyByDate.has(`${date}:report`) || dailyByDate.has(`${date}:plan`) ? "calendar-active" : ""}`} disabled={!dailyByDate.has(`${date}:report`) && !dailyByDate.has(`${date}:plan`)} onClick={() => chooseDate(date)}><strong>{date.slice(-2)}</strong><span>{dailyByDate.has(`${date}:report`) ? "报" : ""}{dailyByDate.has(`${date}:plan`) ? "规" : ""}</span></button> : <span key={`empty-${index}`} className="calendar-empty" />)}</div>{kindTabs(hasReport, hasPlan)}<p className="quiet">有“报 / 规”标记的日期可打开；同日优先显示报告。</p></aside><ReviewReader selected={selected} body={body} error={error} vaultName={vaultName} /></div></>; }
+  return <><VaultIssuesNotice issues={issues} vaultName={vaultName} /><div className="review-console"><aside className="review-index">{kindTabs()}{projectFilter}<p className="eyebrow">ORBITAL ARCHIVE / {period.toUpperCase()}</p>{filtered.length ? filtered.map((review) => <button key={review.id} onClick={() => setSelected(review)} className={selected?.id === review.id ? "review-selected" : ""}><strong>{review.title}</strong><small>{review.periodStart && review.periodEnd ? `${review.periodStart} — ${review.periodEnd}` : review.date || "日期未标注"} · {review.status || "未标注状态"} · {review.projects.length} 项目{review.isLegacy ? " · 历史格式" : ""}</small></button>) : <p className="quiet">此筛选下没有可读的{kind === "report" ? "报告" : "规划"}。</p>}</aside><ReviewReader selected={selected} body={body} error={error} vaultName={vaultName} /></div></>;
 }

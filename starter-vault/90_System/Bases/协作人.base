@@ -1,0 +1,35 @@
+filters:
+  and:
+    - file.inFolder("03_Topics/人物")
+    - type == "topic"
+    - topic_kind == "collaborator_reference"
+properties:
+  file.name:
+    displayName: 协作人
+  status:
+    displayName: 状态
+  relationship_roles:
+    displayName: 关系角色
+  projects:
+    displayName: 关联项目
+  collaboration_topics:
+    displayName: 协作主题
+  updated:
+    displayName: 更新日期
+views:
+  - type: table
+    name: 使用中
+    filters:
+      and:
+        - status == "active"
+    order:
+      - updated
+      - file.name
+  - type: table
+    name: 待复核
+    filters:
+      and:
+        - status == "review"
+    order:
+      - updated
+      - file.name

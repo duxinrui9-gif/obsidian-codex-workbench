@@ -15,6 +15,10 @@ properties:
     displayName: 项目
   next_action:
     displayName: 下一动作
+  start_on:
+    displayName: 开始日期
+  due_on:
+    displayName: 交付日期
   scheduled_for:
     displayName: 计划日期
   review_on:
@@ -51,6 +55,16 @@ views:
       - projects
       - file.name
   - type: table
+    name: 近期交付
+    filters:
+      and:
+        - status == "active"
+        - due_on >= today()
+    order:
+      - due_on
+      - projects
+      - file.name
+  - type: table
     name: 全部未关闭
     filters:
       and:
@@ -58,6 +72,7 @@ views:
     order:
       - action_state
       - projects
+      - due_on
       - scheduled_for
       - review_on
       - file.name
