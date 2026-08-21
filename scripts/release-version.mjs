@@ -129,7 +129,7 @@ export function releaseNotes(root = repoRoot, version = "") {
 }
 
 function assertReleaseWorktree(root = repoRoot) {
-  const status = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim();
+  const status = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).replace(/\s+$/u, "");
   if (!status) return;
   const unexpected = status.split("\n").filter((line) => line.slice(3) !== "next-env.d.ts");
   if (unexpected.length) throw new Error(`发布操作要求干净工作树（仅允许生成的 next-env.d.ts）：${unexpected.join(", ")}`);
