@@ -128,10 +128,14 @@ export function releaseNotes(root = repoRoot, version = "") {
   return release.content;
 }
 
+export function releaseWorktreeIssues(status) {
+  const lines = status.replace(/\s+$/u, "").split("\n").filter(Boolean);
+  return lines.filter((line) => line.slice(3) !== "next-env.d.ts");
+}
+
 function assertReleaseWorktree(root = repoRoot) {
-  const status = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).replace(/\s+$/u, "");
-  if (!status) return;
-  const unexpected = status.split("\n").filter((line) => line.slice(3) !== "next-env.d.ts");
+  const status = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" });
+  const unexpected = releaseWorktreeIssues(status);
   if (unexpected.length) throw new Error(`发布操作要求干净工作树（仅允许生成的 next-env.d.ts）：${unexpected.join(", ")}`);
 }
 

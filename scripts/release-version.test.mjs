@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { assertReleaseContract, compareVersions, parseChangelog, parseVersion, prepareRelease, releaseNotes } from "./release-version.mjs";
+import { assertReleaseContract, compareVersions, parseChangelog, parseVersion, prepareRelease, releaseNotes, releaseWorktreeIssues } from "./release-version.mjs";
 
 function fixture(changelog = "# Changelog\n\n## Unreleased\n\n- Add calendar filtering.\n\n## v0.1.0 — 2026-08-14\n\n- First release.\n") {
   const root = mkdtempSync(join(tmpdir(), "workbench-release-"));
@@ -19,6 +19,11 @@ test("accepts stable SemVer and orders versions", () => {
   assert.equal(compareVersions("0.2.0", "0.1.9"), 1);
   assert.throws(() => parseVersion("v0.2.0"));
   assert.throws(() => parseVersion("0.2.0-beta.1"));
+});
+
+test("allows only the generated Next route reference in a release worktree", () => {
+  assert.deepEqual(releaseWorktreeIssues(" M next-env.d.ts\n"), []);
+  assert.deepEqual(releaseWorktreeIssues(" M package.json\n M next-env.d.ts\n"), [" M package.json"]);
 });
 
 test("rejects inconsistent version contracts and malformed changelogs", () => {
