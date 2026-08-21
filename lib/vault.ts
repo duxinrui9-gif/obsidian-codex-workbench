@@ -21,6 +21,7 @@ import {
   type HealthResponse,
   type ProjectSummary,
   type ProjectStatus,
+  type ProjectTransitionInput,
   type ReviewKind,
   type ReviewPeriod,
   type ReviewRecord,
@@ -36,6 +37,7 @@ const ALLOWED_SCOPES: AssetScope[] = ["personal", "organization", "project", "br
 declare global {
   var __vibeActionWriteLocks: Map<string, Promise<void>> | undefined;
   var __vibeCollaboratorWriteLocks: Map<string, Promise<void>> | undefined;
+  var __vibeProjectWriteLocks: Map<string, Promise<void>> | undefined;
 }
 
 function hash(content: string): string {
@@ -503,9 +505,12 @@ export async function createProject(input: CreateProjectInput): Promise<ProjectS
     throw error;
   }
   return {
+    id: Buffer.from(path.relative(root, file)).toString("base64url"),
     name,
     wikiLink: toWikiProject(name),
     relativePath: path.relative(root, file),
+    version: hash(content),
+    updated: today(),
     status: "active",
     hasProjectPage: true,
     activeCount: 0,
@@ -817,6 +822,73 @@ export async function getReview(id: string): Promise<ReviewRecord> {
   return { ...parseReview(raw, real, root, period), body: splitFrontmatter(raw).body };
 }
 
+function projectRelativePath(id: string): string {
+  const decoded = Buffer.from(id, "base64url").toString("utf8");
+  const directory = vaultProfile().paths.projects;
+  if (!id || Buffer.from(decoded).toString("base64url") !== id || !decoded.startsWith(`${directory}/`) || !decoded.endsWith(".md")) {
+    throw new AppError("项目标识无效。", 400, "INVALID_PROJECT_ID");
+  }
+  return decoded;
+}
+
+async function projectLocation(id: string): Promise<string> {
+  const decoded = projectRelativePath(id);
+  const root = await vaultRoot();
+  const file = path.resolve(root, decoded);
+  const real = await fs.realpath(file).catch(() => "");
+  if (!real) throw new AppError("找不到该项目页。", 404, "PROJECT_NOT_FOUND");
+  if (!real.startsWith(`${root}${path.sep}`)) throw new AppError("项目页路径超出 Vault 范围。", 403, "PATH_OUTSIDE_VAULT");
+  return real;
+}
+
+function projectWriteLocks(): Map<string, Promise<void>> {
+  globalThis.__vibeProjectWriteLocks ??= new Map<string, Promise<void>>();
+  return globalThis.__vibeProjectWriteLocks;
+}
+
+async function withProjectWriteLock<T>(id: string, operation: () => Promise<T>): Promise<T> {
+  const locks = projectWriteLocks();
+  const previous = locks.get(id) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const tail = previous.then(() => gate);
+  locks.set(id, tail);
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (locks.get(id) === tail) locks.delete(id);
+  }
+}
+
+export async function transitionProject(id: string, input: ProjectTransitionInput): Promise<ProjectSummary> {
+  projectRelativePath(id);
+  return withProjectWriteLock(id, async () => {
+    const file = await projectLocation(id);
+    if (isVaultGuide(file)) throw new AppError("该文件不是可流转的项目页。", 404, "PROJECT_NOT_FOUND");
+    const raw = await fs.readFile(file, "utf8");
+    const document = splitFrontmatter(raw);
+    const values = document.yaml.toJS() as Record<string, unknown>;
+    const fields = vaultProfile().properties.project;
+    const currentStatus = projectStatusFromSource(getString(values[fields.status]) || projectStatusToSource("active"));
+    if (!input.expectedVersion || hash(raw) !== input.expectedVersion) {
+      throw new AppError("项目页已被 Obsidian 或其他窗口修改。请刷新后再操作。", 409, "VERSION_CONFLICT");
+    }
+    const valid = input.transition === "archive"
+      ? currentStatus === "active" || currentStatus === "review"
+      : currentStatus === "archived";
+    if (!valid) throw new AppError("当前项目状态不能执行此操作。", 422, "INVALID_PROJECT_TRANSITION");
+    document.yaml.set(fields.status, projectStatusToSource(input.transition === "archive" ? "archived" : "active"));
+    document.yaml.set(fields.updated, today());
+    const next = stringifyFrontmatter(document);
+    await backupAndWrite(file, raw, next);
+    const updated = (await readProjects()).find((project) => project.id === id);
+    if (!updated) throw new AppError("项目状态已写入，但无法重新读取项目页。", 500, "PROJECT_UPDATE_FAILED");
+    return updated;
+  });
+}
+
 export async function readProjects(): Promise<ProjectSummary[]> {
   return (await readProjectsWithIssues()).items;
 }
@@ -825,7 +897,7 @@ export async function readProjectsWithIssues(providedActions?: ActionRecord[]): 
   const actions = providedActions ?? (await readActionsWithIssues()).items;
   const todayValue = today();
   const root = await vaultRoot();
-  const pages = new Map<string, { relativePath: string; status: ProjectStatus }>();
+  const pages = new Map<string, { id: string; relativePath: string; version: string; updated: string; status: ProjectStatus }>();
   const issues: VaultIssue[] = [];
   const projectPath = vaultProfile().paths.projects;
   await requiredDirectory(projectPath, "PROJECTS_DIRECTORY_UNAVAILABLE", "无法访问 Vault 的项目目录。");
@@ -837,7 +909,8 @@ export async function readProjectsWithIssues(providedActions?: ActionRecord[]): 
       const values = splitFrontmatter(raw).yaml.toJS() as Record<string, unknown>;
       const status = projectStatusFromSource(getString(values[vaultProfile().properties.project.status]) || projectStatusToSource("active"));
       if (status === "unknown") issues.push({ kind: "project", relativePath: path.relative(root, file), code: "INVALID_PROJECT_STATUS", message: "项目状态无效，已按待确认项目显示。" });
-      pages.set(path.basename(file, ".md"), { relativePath: path.relative(root, file), status });
+      const relativePath = path.relative(root, file);
+      pages.set(path.basename(file, ".md"), { id: Buffer.from(relativePath).toString("base64url"), relativePath, version: hash(raw), updated: getString(values[vaultProfile().properties.project.updated]), status });
     } catch (error) {
       issues.push(vaultIssue("project", file, root, error));
     }
@@ -851,9 +924,12 @@ export async function readProjectsWithIssues(providedActions?: ActionRecord[]): 
     const doneTasks = grouped.filter((action) => action.status === "archived" && action.actionState === "done");
     const cancelledTasks = grouped.filter((action) => action.status === "archived" && action.actionState === "cancelled");
     return {
+      id: pages.get(name)?.id ?? "",
       name,
       wikiLink: name === "未归类" ? "" : toWikiProject(name),
       relativePath: pages.get(name)?.relativePath ?? "",
+      version: pages.get(name)?.version ?? "",
+      updated: pages.get(name)?.updated ?? "",
       status: name === "未归类" ? "active" : (pages.get(name)?.status ?? "unknown"),
       hasProjectPage: pages.has(name),
       activeCount: tasks.length,

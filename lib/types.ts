@@ -56,9 +56,12 @@ export interface ActionRecord {
 }
 
 export interface ProjectSummary {
+  id: string;
   name: string;
   wikiLink: string;
   relativePath: string;
+  version: string;
+  updated: string;
   status: ProjectStatus;
   hasProjectPage: boolean;
   activeCount: number;
@@ -171,6 +174,11 @@ export interface CreateProjectInput {
   successCriteria: string;
   nextAction: string;
   targetDate?: string;
+}
+
+export interface ProjectTransitionInput {
+  expectedVersion: string;
+  transition: "archive" | "restore";
 }
 
 export interface CreateCollaboratorInput {

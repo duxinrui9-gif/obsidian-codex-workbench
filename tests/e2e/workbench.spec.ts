@@ -12,7 +12,7 @@ test("风险筛选携带复查日期并可清除", async ({ page }) => {
   await expect(page.locator("#task-panel-status").getByText("演示逾期复查")).toBeVisible();
   await expect(page.locator("#task-panel-status").getByText("复 2000-01-01")).toBeVisible();
   await page.getByRole("button", { name: "清除筛选" }).click();
-  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("当前：1 项");
 });
 
 test("标签支持方向键、Home 和 End", async ({ page }) => {
@@ -70,6 +70,7 @@ test("各板块在桌面宽度没有小于 11px 的可见文字", async ({ page 
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const label of ["任务看板", "项目看板", "协作人", "日报"]) {
     await open(page, label);
+    if (label === "日报") await expect(page.locator(".review-console")).toBeVisible();
     const sizes = await page.locator("body *").evaluateAll((nodes) => nodes.filter((node) => !node.children.length && node.textContent?.trim()).map((node) => ({ text: node.textContent?.trim(), className: node.className, size: Number.parseFloat(getComputedStyle(node).fontSize) })));
     expect(Math.min(...sizes.map((item) => item.size)), `${label}: ${JSON.stringify(sizes.filter((item) => item.size < 11))}`).toBeGreaterThanOrEqual(11);
   }
@@ -83,4 +84,51 @@ test("三种桌面宽度在明暗主题都没有页面级溢出", async ({ page 
     await page.getByRole("button", { name: "切换明暗主题" }).click();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   }
+});
+
+test("任务筛选可组合，日历日期格不会裁切信号", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await open(page, "任务看板");
+  await page.getByLabel("关键词").fill("演示");
+  const filters = page.locator(".task-filters");
+  await filters.getByLabel("项目").selectOption("演示项目");
+  await filters.getByLabel("状态").selectOption("waiting");
+  await filters.getByLabel("日期风险").selectOption("overdue_review");
+  await expect(page.getByRole("status")).toContainText("关键词“演示” · 演示项目 · 等待 · 逾期复查 · 1 项");
+  await page.getByRole("tab", { name: "日历看板" }).click();
+  await expect(page.locator(".task-calendar-day").evaluateAll((nodes) => nodes.every((node) => node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth))).resolves.toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test("项目结束确认保留活跃任务并支持恢复", async ({ page }) => {
+  let archived = false;
+  let project: Record<string, unknown> | null = null;
+  await page.route("**/api/workbench", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json() as { projects: Array<Record<string, unknown>>; capabilities: { writeEnabled: boolean } };
+    const current = body.projects.find((item) => item.name === "演示项目");
+    if (current) {
+      project = { ...current, status: archived ? "archived" : "active", version: archived ? "archived-version" : "active-version" };
+      body.projects = body.projects.map((item) => item.name === "演示项目" ? project! : item);
+    }
+    body.capabilities = { writeEnabled: true };
+    await route.fulfill({ response, json: body });
+  });
+  await page.route("**/api/projects/*/transition", async (route) => {
+    const input = route.request().postDataJSON() as { transition: "archive" | "restore" };
+    archived = input.transition === "archive";
+    project = { ...project!, status: archived ? "archived" : "active", version: archived ? "archived-version" : "active-version" };
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(project) });
+  });
+  await open(page, "项目看板");
+  const end = page.getByRole("button", { name: "结束项目" });
+  await end.click();
+  await expect(page.getByRole("dialog")).toContainText("仍有 1 个活跃任务");
+  await page.getByRole("button", { name: "确认结束项目" }).click();
+  await expect(page.locator(".project-transition-success")).toContainText("已结束项目：演示项目");
+  await page.getByRole("tab", { name: "已结束" }).click();
+  await expect(page.getByRole("heading", { name: "演示项目" })).toBeVisible();
+  await page.getByRole("button", { name: "恢复项目" }).click();
+  await page.getByRole("button", { name: "确认恢复项目" }).click();
+  await expect(page.locator(".project-transition-success")).toContainText("已恢复项目：演示项目");
 });

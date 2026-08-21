@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppError } from "../lib/errors";
 import { assertIsoDate, assertLocalRequest, assertSafeId } from "../lib/security";
-import { createAction, createCollaborator, createProject, getAction, getCollaborator, getReview, patchAction, patchCollaborator, readActions, readActionsWithIssues, readCollaboratorsWithIssues, readProjects, readProjectsWithIssues, readReviews, readReviewsWithIssues, readWorkbenchSnapshot, transitionAction } from "../lib/vault";
+import { createAction, createCollaborator, createProject, getAction, getCollaborator, getReview, patchAction, patchCollaborator, readActions, readActionsWithIssues, readCollaboratorsWithIssues, readProjects, readProjectsWithIssues, readReviews, readReviewsWithIssues, readWorkbenchSnapshot, transitionAction, transitionProject } from "../lib/vault";
 
 let temporaryVault = "";
 const fixture = path.join(process.cwd(), "tests", "fixtures", "vault");
@@ -203,6 +203,32 @@ describe("Vault adapter", () => {
     expect((await readProjects()).find((item) => item.name === "新项目")?.activeCount).toBe(0);
     await expect(createProject({ name: "新项目", goal: "重复", successCriteria: "重复", nextAction: "重复" })).rejects.toMatchObject({ code: "PROJECT_EXISTS" });
     await expect(createProject({ name: "../越界", goal: "非法", successCriteria: "非法", nextAction: "非法" })).rejects.toMatchObject({ code: "INVALID_PROJECT_NAME" });
+  });
+
+  it("archives and restores a project without changing active tasks", async () => {
+    const before = (await readProjects()).find((project) => project.name === "测试项目")!;
+    const action = await getAction("ACT-20260813-001");
+    const archived = await transitionProject(before.id, { expectedVersion: before.version, transition: "archive" });
+    expect(archived).toMatchObject({ status: "archived", activeCount: 1, id: before.id });
+    expect((await getAction(action.id)).status).toBe("active");
+    const raw = await fs.readFile(path.join(temporaryVault, archived.relativePath), "utf8");
+    expect(raw).toContain("status: archived");
+    expect(raw).toContain("# 测试项目");
+    await expect(transitionProject(archived.id, { expectedVersion: archived.version, transition: "restore" })).resolves.toMatchObject({ status: "active" });
+  });
+
+  it("rejects invalid project transitions and serializes concurrent writes", async () => {
+    const project = (await readProjects()).find((item) => item.name === "测试项目")!;
+    await expect(transitionProject("not-a-project", { expectedVersion: project.version, transition: "archive" })).rejects.toMatchObject({ code: "INVALID_PROJECT_ID" });
+    const results = await Promise.allSettled([
+      transitionProject(project.id, { expectedVersion: project.version, transition: "archive" }),
+      transitionProject(project.id, { expectedVersion: project.version, transition: "archive" }),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const archived = (await readProjects()).find((item) => item.name === "测试项目")!;
+    await expect(transitionProject(archived.id, { expectedVersion: archived.version, transition: "archive" })).rejects.toMatchObject({ code: "INVALID_PROJECT_TRANSITION" });
+    await expect(transitionProject(archived.id, { expectedVersion: archived.version, transition: "restore" })).resolves.toMatchObject({ status: "active" });
   });
 
   it("reads, creates, and safely edits collaborator role cards", async () => {
