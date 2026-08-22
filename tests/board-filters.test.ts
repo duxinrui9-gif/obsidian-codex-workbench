@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROJECT_FILTERS, EMPTY_TASK_FILTERS, filterProjects, filterTaskActions } from "../lib/board-filters";
+import { EMPTY_PROJECT_FILTERS, EMPTY_TASK_FILTERS, filterProjects, filterTaskActions, sortProjectsForBoard } from "../lib/board-filters";
 import type { ActionRecord, ProjectSummary } from "../lib/types";
 
 function action(overrides: Partial<ActionRecord> = {}): ActionRecord {
@@ -26,5 +26,25 @@ describe("board filters", () => {
     expect(filterProjects([active, waiting, archived], "active", { ...EMPTY_PROJECT_FILTERS, health: "in_progress" }).map((item) => item.name)).toEqual(["推进项目"]);
     expect(filterProjects([active, waiting, archived], "archived", { ...EMPTY_PROJECT_FILTERS, health: "residual_active" }).map((item) => item.name)).toEqual(["结束项目"]);
     expect(filterProjects([active, waiting, archived], "archived", { query: "结束", health: "has_done" }).map((item) => item.name)).toEqual(["结束项目"]);
+  });
+
+  it("sorts active projects by task load and keeps source arrays unchanged", () => {
+    const zero = project({ name: "零任务", activeCount: 0, inProgressCount: 0, overdueDeliveryCount: 0, updated: "2026-08-22" });
+    const low = project({ name: "低负荷", activeCount: 1, inProgressCount: 1, overdueDeliveryCount: 1, updated: "2026-08-20" });
+    const delivery = project({ name: "交付风险", activeCount: 3, inProgressCount: 1, overdueDeliveryCount: 2, updated: "2026-08-20" });
+    const progressing = project({ name: "正在推进", activeCount: 3, inProgressCount: 2, overdueDeliveryCount: 0, updated: "2026-08-19" });
+    const recent = project({ name: "最新更新", activeCount: 3, inProgressCount: 2, overdueDeliveryCount: 0, updated: "2026-08-22" });
+    const original = [zero, low, delivery, progressing, recent];
+    expect(sortProjectsForBoard(original, "active").map((item) => item.name)).toEqual(["最新更新", "正在推进", "交付风险", "低负荷", "零任务"]);
+    expect(original.map((item) => item.name)).toEqual(["零任务", "低负荷", "交付风险", "正在推进", "最新更新"]);
+  });
+
+  it("sorts filtered projects and archived projects consistently", () => {
+    const first = project({ name: "匹配项目甲", activeCount: 2, inProgressCount: 1, updated: "2026-08-21" });
+    const second = project({ name: "匹配项目乙", activeCount: 4, inProgressCount: 0, updated: "2026-08-20" });
+    const archivedOlder = project({ name: "结束项目甲", status: "archived", activeCount: 0, updated: "2026-08-20" });
+    const archivedNewer = project({ name: "结束项目乙", status: "archived", activeCount: 0, updated: "2026-08-22" });
+    expect(filterProjects([first, second], "active", { query: "匹配", health: "" }).map((item) => item.name)).toEqual(["匹配项目乙", "匹配项目甲"]);
+    expect(filterProjects([archivedOlder, archivedNewer], "archived", EMPTY_PROJECT_FILTERS).map((item) => item.name)).toEqual(["结束项目乙", "结束项目甲"]);
   });
 });

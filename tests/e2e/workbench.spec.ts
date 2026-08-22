@@ -161,3 +161,25 @@ test("项目结束确认保留活跃任务并支持恢复", async ({ page }) => 
   await page.getByRole("button", { name: "确认恢复项目" }).click();
   await expect(page.locator(".project-transition-success")).toContainText("已恢复项目：演示项目");
 });
+
+test("项目看板按活跃任务量排序，并在筛选后保持顺序", async ({ page }) => {
+  await page.route("**/api/workbench", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json() as { projects: Array<Record<string, unknown>> };
+    const base = body.projects.find((item) => item.name === "演示项目");
+    if (base) {
+      body.projects = [
+        { ...base, id: "zero", name: "零任务项目", activeCount: 0, inProgressCount: 0, overdueDeliveryCount: 0, updated: "2026-08-22" },
+        { ...base, id: "lower", name: "低负荷项目", activeCount: 1, inProgressCount: 1, overdueDeliveryCount: 0, updated: "2026-08-22" },
+        { ...base, id: "delivery", name: "交付风险项目", activeCount: 3, inProgressCount: 1, overdueDeliveryCount: 2, updated: "2026-08-20" },
+        { ...base, id: "progress", name: "推进项目", activeCount: 3, inProgressCount: 2, overdueDeliveryCount: 0, updated: "2026-08-19" },
+      ];
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await open(page, "项目看板");
+  const projectNames = () => page.locator(".project-grid .project-panel h2").allTextContents();
+  await expect.poll(projectNames).toEqual(["推进项目", "交付风险项目", "低负荷项目", "零任务项目"]);
+  await page.getByLabel("项目健康度").selectOption("in_progress");
+  await expect.poll(projectNames).toEqual(["推进项目", "交付风险项目", "低负荷项目"]);
+});
