@@ -86,6 +86,35 @@ test("三种桌面宽度在明暗主题都没有页面级溢出", async ({ page 
   }
 });
 
+test("日报月历在桌面宽度和明暗主题下不会裁切报规标记", async ({ page }) => {
+  const calendarFits = () => page.locator(".report-calendar-day").evaluateAll((nodes) => nodes.every((node) => {
+    const day = node.getBoundingClientRect();
+    const markers = [...node.querySelectorAll<HTMLElement>(".report-calendar-mark")];
+    return node.scrollWidth <= node.clientWidth
+      && node.scrollHeight <= node.clientHeight
+      && markers.every((marker) => {
+        const rect = marker.getBoundingClientRect();
+        return marker.scrollWidth <= marker.clientWidth
+          && marker.scrollHeight <= marker.clientHeight
+          && Number.parseFloat(getComputedStyle(marker).fontSize) >= 11
+          && rect.left >= day.left && rect.right <= day.right && rect.top >= day.top && rect.bottom <= day.bottom;
+      });
+  }));
+
+  for (const width of [1280, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page, "日报");
+    await expect(page.getByRole("button", { name: "2026-08-20，报告和规划" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "2026-08-18，报告" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "2026-08-19，规划" })).toBeVisible();
+    await expect.poll(calendarFits).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.getByRole("button", { name: "切换明暗主题" }).click();
+    await expect.poll(calendarFits).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  }
+});
+
 test("任务筛选可组合，日历日期格不会裁切信号", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await open(page, "任务看板");

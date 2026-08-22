@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { obsidianOpenUri } from "../lib/obsidian-uri";
-import { reviewHeadingId, visibleReviewBody } from "../lib/review-utils";
+import { malformedMarkdownTables, reviewHeadingId, visibleReviewBody } from "../lib/review-utils";
 import { rovingTabIndex } from "../lib/roving-tabs";
 import { filterTaskBoardActions } from "../lib/task-board";
 import type { ActionRecord, ReviewRecord } from "../lib/types";
@@ -27,6 +27,14 @@ describe("workbench UI helpers", () => {
     const review = { title: "日报", id: "r", kind: "report" } as ReviewRecord;
     expect(visibleReviewBody(review, "\n\n# 日报\n\n## 结论\n正文")).toBe("## 结论\n正文");
     expect(reviewHeadingId("今日结论")).toBe("review-section-今日结论");
+  });
+
+  it("checks only malformed Markdown table headers and separators", () => {
+    expect(malformedMarkdownTables("| A | B |\r\n| --- | --- |\r\n| [[项目|别名]] | 正常 |\n\n| A | B | C |\n| --- | --- |\n| 1 | 2 | 3 |\n\n普通文字 | 不是表格")).toEqual([{ line: 6, headerColumns: 3, separatorColumns: 2 }]);
+  });
+
+  it("ignores table-like examples inside fenced code", () => {
+    expect(malformedMarkdownTables("~~~md\n| A | B | C |\n| --- | --- |\n~~~\n\n| A | B |\n| --- | --- |")).toEqual([]);
   });
 
   it("builds vault plus relative file Obsidian URIs", () => {

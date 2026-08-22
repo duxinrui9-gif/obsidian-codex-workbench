@@ -63,6 +63,13 @@ describe("Vault adapter", () => {
     expect(snapshot.capabilities).toEqual({ writeEnabled: false });
   });
 
+  it("keeps a report readable while diagnosing malformed Markdown tables", async () => {
+    await fs.writeFile(path.join(temporaryVault, "05_Review/Daily/2026-08/Report/2026-08-15.md"), "---\ntype: review\nstatus: complete\nreview_period: daily\nreview_kind: daily_report\ndate: 2026-08-15\n---\n\n# 表格异常日报\n\n| 项目 | 健康度 | 风险 | 下步 |\n| --- | --- | --- |\n| 测试项目 | 正常 | 无 | 继续 |\n");
+    const reviews = await readReviewsWithIssues("daily");
+    expect(reviews.items.some((review) => review.title === "表格异常日报")).toBe(true);
+    expect(reviews.issues).toContainEqual(expect.objectContaining({ kind: "review", relativePath: "05_Review/Daily/2026-08/Report/2026-08-15.md", code: "INVALID_MARKDOWN_TABLE" }));
+  });
+
   it("ignores Starter guide notes while retaining malformed data warnings", async () => {
     await fs.writeFile(path.join(temporaryVault, "05_Review/Actions/00 使用说明.md"), "# 任务说明\n");
     await fs.writeFile(path.join(temporaryVault, "05_Review/Daily/README.md"), "# 日报说明\n");
