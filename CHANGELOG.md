@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## v0.3.0 — 2026-08-23
+
 - Fixed report-table diagnostics and daily report calendar layout overflow; project boards now rank active projects by active task load while keeping archived projects ordered by recency.
 - Stabilized Playwright workbench fixtures by serving a pre-fetched synthetic snapshot, removing the disposed-response race from route handlers.
 - Extended the four packaged Obsidian Skills with static mixed-material coverage, task-method operational readiness, batch clone detection, and separate evidence-maturity/readiness guidance.
@@ -38,7 +40,8 @@
 - Made Vault writes explicit opt-in with `WORKBENCH_WRITE_ENABLED=true`.
 - Added public installation, verification, packaging, and GitHub Actions workflows.
 
-[Unreleased]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.3.0...HEAD
+[v0.3.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.1...v0.3.0
 [v0.2.1]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/duxinrui9-gif/obsidian-codex-workbench/releases/tag/v0.1.0

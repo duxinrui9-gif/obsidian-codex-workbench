@@ -1,6 +1,6 @@
 {
   "package": "obsidian-knowledge-skills",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "distribution": "public",
   "license": "MIT",
   "python": ">=3.9",
