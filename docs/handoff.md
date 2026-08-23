@@ -2,7 +2,7 @@
 
 ## Current State
 
-远端 `main` 包含当前工作台功能；`v0.2.1` 是本轮待发布版本，`v0.1.0` 保留为已发布回滚点。`v0.2.0` 标签因首轮标签获取校验失败而没有公开 Release 或资产，按不可变规则不移动该标签。应用从仓库根目录以 `pnpm dev` 启动，默认只读并只绑定 `127.0.0.1`。它读取用户明确配置的 Vault，可从模板创建项目，并安全创建、更新和流转 `05_Review/Actions` 中的任务卡。Aldrich 已改为本地 WOFF2，不再请求第三方字体资源。
+远端 `main` 包含当前工作台功能；`v0.2.1` 是已发布且不可变的回滚点，下一次候选发布为 `v0.3.0`。`v0.2.0` 标签因首轮标签获取校验失败而没有公开 Release 或资产，按不可变规则不移动该标签。应用从仓库根目录以 `pnpm dev` 启动，默认只读并只绑定 `127.0.0.1`。它读取用户明确配置的 Vault，可从模板创建项目，并安全创建、更新和流转 `05_Review/Actions` 中的任务卡。Aldrich 已改为本地 WOFF2，不再请求第三方字体资源。
 
 首页通过 `GET /api/workbench` 获取一次任务/项目快照。单个任务、项目或报告文件损坏时跳过并显示可打开的 Obsidian 降级告警；Vault 根目录或项目目录不可访问时才整体失败。任务的 `start_on`、`due_on`、`scheduled_for` 与 `review_on` 已完整接入：交付窗口在日历中按自然日连续显示，同日多个日期角色合并为一张任务卡，繁忙日期按项目和紧迫度组织。
 
@@ -19,6 +19,8 @@
 - 2026-08-21：安全升级 Next.js/YAML，新增 `security:check`、Playwright 合成 Vault 门禁、风险筛选上下文、任务创建锁、报告请求取消与统一 Obsidian URI。
 - 2026-08-21：建立稳定 SemVer 发布体系。`package.json` 为版本真源；准备命令冻结 Changelog，注解标签工作流验证完整发布门禁、ZIP 资产与 SHA-256 后才发布 GitHub Release。
 - 2026-08-21：修复标签工作流显式获取注解标签并确认其位于 `main` 历史；该修复将作为 `v0.2.1` 发布，不移动未发布的 `v0.2.0` 标签。
+- 2026-08-23：待发布的工作台补齐周报 Markdown 表格诊断、日报月历防溢出和项目活跃任务量排序；Playwright 改为用预取合成快照路由，避免已释放响应的测试竞态。
+- 2026-08-23：待发布的四个打包 Skill 增加静态混合材料/PDF/PPT 覆盖、任务方法原子化与试跑规则、批次克隆检查和证据成熟度与操作就绪度的分离；`validate_method_batch.py` 是只读的批次检查入口，manifest 跟随根 `package.json` 版本。
 
 ## Open Items
 
@@ -47,7 +49,7 @@
 
 ## Verification
 
-发布前需通过 TypeScript、lint、单元测试、构建、Playwright、生产依赖审计、发布检查、Skill manifest/包校验及 Starter Vault 健康审计。浏览器测试只读取 `tests/fixtures/e2e-vault`，真实配置 Vault 继续保持只读。`v0.1.0` 的发布包 SHA-256 仅对应该历史标签；已发布标签不移动，发布故障以新的补丁版本修复。
+发布前需通过 TypeScript、lint、单元测试、构建、Playwright、生产依赖审计、发布检查、Skill manifest/包校验、Starter Vault 健康审计和任务方法批次检查。浏览器测试只读取 `tests/fixtures/e2e-vault`，真实配置 Vault 继续保持只读。已发布标签不移动，发布故障以新的补丁版本修复。
 
 ## History
 

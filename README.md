@@ -10,6 +10,7 @@
 - 协作人目录：只读取 `type: topic` / `topic_kind: collaborator_reference` 的稳定角色卡，写入开关开启时才可新建或编辑稳定字段；
 - `starter-vault`：`00 → 01 → 02` 知识链路与日报系统的统一空白模板；
 - 四个 Codex Skill：资料整理、知识库查询、结构体检和成熟度审计；
+- Skill 批次校验：对静态混合材料覆盖、任务方法的专属输出与试跑，以及相似模板克隆提供可复现诊断；
 - 安全初始化、发布打包与 CI 校验脚本。
 
 > 本项目只适用于本机单用户环境。它不包含登录、多租户、云同步或公网部署能力。不要把开发服务暴露到局域网或公网。
@@ -42,13 +43,15 @@ pnpm test:e2e # 需要先完成 pnpm build；只使用 tests/fixtures/e2e-vault
 pnpm security:check
 pnpm release:check
 python3 packages/obsidian-skills/verify.py
+python3 packages/obsidian-skills/skills/obsidian-health-check/scripts/validate_method_batch.py \
+  --vault <vault-root> --path-prefix <method-dir> --fail-on warning
 ```
 
 工作台自托管 Aldrich 字体，不在运行时请求 Google Fonts；其 OFL 许可证、来源和校验值位于 `public/fonts/`。真实 Vault、`.env.local`、`.workbench-data`、构建产物、日志和浏览器状态均被 Git 忽略，不能进入提交或发布包。
 
 ## 发布版本
 
-`package.json` 是唯一版本来源，正式标签使用稳定的 `vX.Y.Z`。`PATCH` 用于兼容性修复、依赖安全和文档；`MINOR` 用于向后兼容的新功能或可选数据字段；进入稳定契约后的破坏性变更使用 `MAJOR`。`0.x` 阶段的破坏性变更必须在 Changelog 中明确说明。
+`package.json` 是唯一版本来源，正式标签使用稳定的 `vX.Y.Z`。工作台和打包的四个 Skill 共用该版本，Skill manifest 会在校验时与其比对。`PATCH` 用于兼容性修复、依赖安全和文档；`MINOR` 用于向后兼容的新功能或可选数据字段；进入稳定契约后的破坏性变更使用 `MAJOR`。`0.x` 阶段的破坏性变更必须在 Changelog 中明确说明。
 
 准备正式版本时，在除生成的 `next-env.d.ts` 外干净的工作树中执行：
 

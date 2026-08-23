@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AppError } from "@/lib/errors";
 import { getString, getStringArray, splitFrontmatter, stringifyFrontmatter } from "@/lib/frontmatter";
+import { malformedMarkdownTables } from "@/lib/review-utils";
 import { assertIsoDate, assertSafeId } from "@/lib/security";
 import { actionStateFromSource, actionStateToSource, projectStatusFromSource, projectStatusToSource, vaultProfile, workbenchWriteEnabled } from "@/lib/vault-profile";
 import {
@@ -797,6 +798,9 @@ export async function readReviewsWithIssues(period?: ReviewPeriod, includeTests 
         if (!includeTests && values[vaultProfile().properties.review.testArtifact] === true) continue;
         result.push(parseReview(raw, file, root, item));
         if (invalidReviewMetric(values)) issues.push({ kind: "review", relativePath: path.relative(root, file), code: "INVALID_REVIEW_METRIC", message: "冻结指标必须是非负整数；无效指标已按未采集处理。" });
+        for (const table of malformedMarkdownTables(splitFrontmatter(raw).body)) {
+          issues.push({ kind: "review", relativePath: path.relative(root, file), code: "INVALID_MARKDOWN_TABLE", message: `第 ${table.line} 行的表格分隔列数为 ${table.separatorColumns}，但表头为 ${table.headerColumns}；正文仍可读取。` });
+        }
       } catch (error) {
         issues.push(vaultIssue("review", file, root, error));
       }

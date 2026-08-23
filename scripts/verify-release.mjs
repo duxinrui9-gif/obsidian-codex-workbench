@@ -75,6 +75,8 @@ function main() {
       if (!report.includes(`${key}:`)) failures.push(`${template} lacks ${key}`);
     }
   }
+  const weeklyTemplate = readFileSync(resolve(starter, "98_Templates/周复盘.md"), "utf8");
+  if (!weeklyTemplate.includes("| 项目 | 健康度 | 风险 / 等待 | 下步 |\n| --- | --- | --- | --- |")) failures.push("weekly template lacks a valid four-column project-health table");
   const profile = readFileSync(resolve(root, "lib/vault-profile.ts"), "utf8");
   if (!profile.includes('WORKBENCH_WRITE_ENABLED === "true"')) failures.push("workbench write gate is not explicit opt-in");
   const fontReadme = readFileSync(resolve(root, "public/fonts/README.md"), "utf8");

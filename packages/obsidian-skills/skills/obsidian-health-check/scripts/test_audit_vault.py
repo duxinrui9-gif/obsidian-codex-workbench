@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 try:
@@ -393,6 +394,75 @@ The reader layer keeps the page's meaningful sentence. ^c-i1-p001-01
 '''
         write_note(vault / "01_Sources/Learning.md", source)
 
+    def write_static_mixed_source(self, vault: Path, *, include_second_slide: bool = True) -> None:
+        """Create a fully covered, page-addressable static slide fixture."""
+        raw = vault / "00_Inbox/static-deck.pptx"
+        raw.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(raw, "w") as archive:
+            archive.writestr("ppt/slides/slide1.xml", "<slide/>")
+            archive.writestr("ppt/slides/slide2.xml", "<slide/>")
+        digest = hashlib.sha256(raw.read_bytes()).hexdigest()
+        composite = hashlib.sha256(f"I1\t{digest}\n".encode()).hexdigest()
+        rows = [
+            "| V-A001-01 | I1 | slide-01 | 标题页 | 第一页的标题、角色关系、行动提示和适用条件均已逐项转录 | [[#^c-static-01]] | folded | transcribed | [[00_Inbox/static-deck.pptx]] | " + digest + " | — |",
+        ]
+        if include_second_slide:
+            rows.append("| V-A001-02 | I1 | slide-02 | 流程页 | 第二页的流程、判断条件、例外处理和升级路径均已逐项转录 | [[#^c-static-02]] | folded | transcribed | [[00_Inbox/static-deck.pptx]] | " + digest + " | — |")
+        visual_rows = "\n".join(rows)
+        write_note(vault / "01_Sources/Static.md", f'''---
+type: source
+status: processed
+created: 2026-08-23
+updated: 2026-08-23
+source_kind: static_mixed_primary_learning
+captured: 2026-08-23
+source_url: ""
+source_unavailable_reason: local material
+content_hash: {composite}
+asset_scope: personal
+sensitivity: internal
+evidence_status: observed
+source_contract: semantic-content-v4
+source_adapter: mixed
+source_role: content
+content_modalities: [text, visual]
+source_inputs: ["[[00_Inbox/static-deck.pptx]]"]
+evidence_families: [fixture:static]
+coverage_status: complete
+coverage_verified: true
+coverage_check: passed
+semantic_check: passed
+visual_check: passed
+content_unit_scheme: stable-block-v2
+visual_unit_scheme: image-region-v1
+compilation_mode: source-primary-complete-v1
+---
+
+# Static source
+
+## 原始输入清单
+
+| input_id | 原件或快照 | 适配器 | 处理范围 | SHA-256 | 采集时间 | 访问状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| I1 | [[00_Inbox/static-deck.pptx]] | document | 全部幻灯片 | {digest} | 2026-08-23 | local |
+
+## 覆盖附录
+
+| input_id | 覆盖单位 | 应覆盖范围 | 正文去向 | 明确排除 | 未解决内容 |
+| --- | --- | --- | --- | --- | --- |
+| I1 | 幻灯片 | 1–2 | [[#^c-static-01]] | — | — |
+
+## 视觉单元清单
+
+| visual_id | input_id | 覆盖单位 | 视觉类型 | 可见内容转录 | 正文块 | 展示方式 | 处理状态 | 附件 | SHA-256 | 限制 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+{visual_rows}
+
+第一页的标题、关系和行动提示。 ^c-static-01
+
+第二页的流程、判断条件和例外处理。 ^c-static-02
+''')
+
     def test_partial_learning_pdf_uses_full_page_table_without_crashing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             vault = Path(temporary)
@@ -417,6 +487,22 @@ The reader layer keeps the page's meaningful sentence. ^c-i1-p001-01
             report, status = self.run_audit(vault, "warning")
             self.assertEqual(status, 1)
             self.assertIn("complete_learning_source_requires_accepted_reading_gates", {item["reason"] for item in report["semantic_issues"]})
+
+    def test_static_mixed_source_covers_every_slide(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_static_mixed_source(vault)
+            report, status = self.run_audit(vault, "warning")
+            self.assertEqual(status, 0)
+            self.assertEqual(report["traceability_issues"], [])
+
+    def test_static_mixed_source_reports_missing_derived_slide(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_static_mixed_source(vault, include_second_slide=False)
+            report, status = self.run_audit(vault, "warning")
+            self.assertEqual(status, 1)
+            self.assertIn("mixed_derived_visual_coverage_mismatch", {item["reason"] for item in report["traceability_issues"]})
 
     def test_slide_photo_manifest_routes_large_input_data_out_of_reader(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

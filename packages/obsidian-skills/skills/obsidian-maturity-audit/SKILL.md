@@ -24,6 +24,8 @@ Audit the evidence behind knowledge cards without deleting records or promoting 
 7. In default `report` mode, do not move cards, change maturity, or write review state. Only with an explicit `更新成熟度`、`归档` or `应用审计结论` request may a retained `superseded` method move to `02_Knowledge/归档/方法/...`; explain the newer evidence. Delete only a redirect-only duplicate when the user explicitly authorizes it, a recoverable backup exists, and non-project links have been migrated or are absent.
 8. A project-page observation counts as applied validation only after it is explicitly recorded as an observed result and compiled into a hash-traceable v4 source; a project page alone never promotes maturity.
 
+9. Audit evidence maturity separately from operational readiness. A more complete visual transcription, a finer source split, or a better worksheet may make a method easier to run but never adds an evidence family. Conversely, a card is not `runnable` merely because it has headings: it needs one task, a named output, task-specific inputs/checks/decision, a filled task-specific template, and one matching dry run that actually fills the output and exercises a pause or exception branch. A generic or copy-pasted trial, a generic E label, or a four-row generic work sheet is an operational gap, not validation.
+
 ## Boundaries
 
 - Do not repair links or Properties beyond what is necessary to record the audit; use `$obsidian-health-check` for deterministic structural work.

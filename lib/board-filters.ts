@@ -70,9 +70,24 @@ function projectMatchesHealth(project: ProjectSummary, health: ProjectHealthFilt
   }
 }
 
+export function sortProjectsForBoard(projects: ProjectSummary[], tab: ProjectTab): ProjectSummary[] {
+  return [...projects].sort((left, right) => {
+    if (tab === "active") {
+      return right.activeCount - left.activeCount
+        || right.inProgressCount - left.inProgressCount
+        || right.overdueDeliveryCount - left.overdueDeliveryCount
+        || right.updated.localeCompare(left.updated)
+        || left.name.localeCompare(right.name, "zh-Hans-CN");
+    }
+    return right.updated.localeCompare(left.updated)
+      || left.name.localeCompare(right.name, "zh-Hans-CN");
+  });
+}
+
 export function filterProjects(projects: ProjectSummary[], tab: ProjectTab, filters: ProjectFilters): ProjectSummary[] {
   const query = filters.query.trim().toLocaleLowerCase("zh-Hans-CN");
-  return projects.filter((project) => projectInTab(project, tab)
+  const visible = projects.filter((project) => projectInTab(project, tab)
     && (!query || project.name.toLocaleLowerCase("zh-Hans-CN").includes(query))
     && projectMatchesHealth(project, filters.health));
+  return sortProjectsForBoard(visible, tab);
 }
