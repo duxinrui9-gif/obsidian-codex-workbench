@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Fixed report-table diagnostics and daily report calendar layout overflow; project boards now rank active projects by active task load while keeping archived projects ordered by recency.
+- Stabilized Playwright workbench fixtures by serving a pre-fetched synthetic snapshot, removing the disposed-response race from route handlers.
+- Extended the four packaged Obsidian Skills with static mixed-material coverage, task-method operational readiness, batch clone detection, and separate evidence-maturity/readiness guidance.
+- Added the read-only `validate_method_batch.py` CLI and tests; Skill manifests now derive and verify their version from the root workbench package.
+
 ## v0.2.1 — 2026-08-21
 
 - Fixed tag-triggered release verification to explicitly fetch and inspect the annotated tag before validating its `main` ancestry.

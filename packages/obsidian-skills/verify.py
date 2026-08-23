@@ -35,6 +35,9 @@ def main() -> int:
         return 2
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     failures: list[str] = []
+    root_package = json.loads((ROOT.parent.parent / "package.json").read_text(encoding="utf-8"))
+    if manifest.get("version") != root_package.get("version"):
+        failures.append("manifest version must match root package.json")
     files = manifest.get("files")
     if not isinstance(files, list):
         failures.append("manifest files must be a list")

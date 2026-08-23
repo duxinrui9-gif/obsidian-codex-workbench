@@ -5,6 +5,12 @@ async function open(page: import("@playwright/test").Page, label: string) {
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
+async function readWorkbenchSnapshot(page: import("@playwright/test").Page): Promise<{ projects: Array<Record<string, unknown>>; capabilities: { writeEnabled: boolean } }> {
+  const response = await page.request.get("/api/workbench");
+  expect(response.ok()).toBe(true);
+  return response.json() as Promise<{ projects: Array<Record<string, unknown>>; capabilities: { writeEnabled: boolean } }>;
+}
+
 test("风险筛选携带复查日期并可清除", async ({ page }) => {
   await page.goto("/");
   await page.locator(".risk-matrix button").filter({ hasText: "逾期复查" }).click();
@@ -132,16 +138,16 @@ test("任务筛选可组合，日历日期格不会裁切信号", async ({ page 
 test("项目结束确认保留活跃任务并支持恢复", async ({ page }) => {
   let archived = false;
   let project: Record<string, unknown> | null = null;
+  const snapshot = await readWorkbenchSnapshot(page);
   await page.route("**/api/workbench", async (route) => {
-    const response = await route.fetch();
-    const body = await response.json() as { projects: Array<Record<string, unknown>>; capabilities: { writeEnabled: boolean } };
+    const body = structuredClone(snapshot);
     const current = body.projects.find((item) => item.name === "演示项目");
     if (current) {
       project = { ...current, status: archived ? "archived" : "active", version: archived ? "archived-version" : "active-version" };
       body.projects = body.projects.map((item) => item.name === "演示项目" ? project! : item);
     }
     body.capabilities = { writeEnabled: true };
-    await route.fulfill({ response, json: body });
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
   });
   await page.route("**/api/projects/*/transition", async (route) => {
     const input = route.request().postDataJSON() as { transition: "archive" | "restore" };
@@ -163,9 +169,9 @@ test("项目结束确认保留活跃任务并支持恢复", async ({ page }) => 
 });
 
 test("项目看板按活跃任务量排序，并在筛选后保持顺序", async ({ page }) => {
+  const snapshot = await readWorkbenchSnapshot(page);
   await page.route("**/api/workbench", async (route) => {
-    const response = await route.fetch();
-    const body = await response.json() as { projects: Array<Record<string, unknown>> };
+    const body = structuredClone(snapshot);
     const base = body.projects.find((item) => item.name === "演示项目");
     if (base) {
       body.projects = [
@@ -175,7 +181,7 @@ test("项目看板按活跃任务量排序，并在筛选后保持顺序", async
         { ...base, id: "progress", name: "推进项目", activeCount: 3, inProgressCount: 2, overdueDeliveryCount: 0, updated: "2026-08-19" },
       ];
     }
-    await route.fulfill({ response, json: body });
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
   });
   await open(page, "项目看板");
   const projectNames = () => page.locator(".project-grid .project-panel h2").allTextContents();

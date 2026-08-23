@@ -11,6 +11,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 
+def package_version() -> str:
+    manifest = json.loads((ROOT.parent.parent / "package.json").read_text(encoding="utf-8"))
+    version = manifest.get("version")
+    if not isinstance(version, str):
+        raise ValueError("root package.json must provide a string version")
+    return version
+
+
 def is_packaged_file(path: Path) -> bool:
     """Exclude Python execution caches from the reproducible distribution."""
     return path.is_file() and path.name != "manifest.json" and "__pycache__" not in path.parts and path.suffix not in {".pyc", ".pyo"}
@@ -28,7 +36,7 @@ def main() -> None:
         files.append({"path": path.relative_to(ROOT).as_posix(), "sha256": digest(path)})
     manifest = {
         "package": "obsidian-knowledge-skills",
-        "version": "0.1.0",
+        "version": package_version(),
         "distribution": "public",
         "license": "MIT",
         "python": ">=3.9",

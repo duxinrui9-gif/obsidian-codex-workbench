@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import sys
+import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -97,7 +98,8 @@ COLLABORATOR_REQUIRED = {"status", "created", "updated", "asset_scope", "sensiti
 COLLABORATOR_STATUSES = {"active", "review", "archived", "ignored"}
 REPORT_METRIC_COUNT_PROPERTIES = {"metric_completed_actions", "metric_carryover_events", "metric_waiting_actions", "metric_overdue_reviews", "metric_overdue_deliveries"}
 METHOD_V2_HEADINGS = ["方法目标", "适用问题与禁用边界", "输入", "输出物", "直接证据台账", "编者操作设计", "执行流程", "决策表", "完成、暂停与停止条件", "工作模板", "会议案例演示", "风险、失败与恢复", "未知与下一次验证"]
-METHOD_V3_HEADINGS = ["方法目标", "适用问题与禁用边界", "输入", "输出物", "输出物映射", "直接证据台账", "编者操作设计", "执行流程", "决策表", "完成、暂停与停止条件", "工作模板", "会议案例演示", "风险、失败与恢复", "未知与下一次验证"]
+METHOD_V3_HEADINGS = ["方法目标", "适用问题与禁用边界", "输入", "输出物", "输出物映射", "直接证据台账", "编者操作设计", "执行流程", "决策表", "完成、暂停与停止条件", "工作模板", "来源场景与演练", "风险、失败与恢复", "未知与下一次验证"]
+METHOD_HEADING_ALIASES = {"来源场景与演练": ("来源场景与演练", "会议案例演示")}
 INPUT_HEADERS = ["input_id", "原件或快照", "适配器", "处理范围", "SHA-256", "采集时间", "访问状态"]
 COVERAGE_HEADERS = ["input_id", "覆盖单位", "应覆盖范围", "正文去向", "明确排除", "未解决内容"]
 DIRECT_EVIDENCE_HEADERS = ["证据ID", "内容", "证据性质", "直接来源", "精确定位", "证据家族", "限制或缺口"]
@@ -111,6 +113,7 @@ PAGE_COVERAGE_FULL_HEADERS = ["input_id", "PDF页码", "页面角色", "内容�
 CONTENT_UNIT_HEADERS = ["unit_id", "PDF页码", "内容类型", "原件内容范围", "正文块", "视觉块", "处理状态", "排除理由", "未解决内容"]
 VISUAL_MANIFEST_HEADERS = ["visual_id", "页码与区域", "视觉类型", "附件", "SHA-256", "可见事实", "论证作用", "证据性质", "正文块", "识别状态", "限制"]
 SLIDE_PHOTO_VISUAL_HEADERS = ["visual_id", "input_id", "代表输入", "视觉类型", "可见内容转录", "正文块", "展示方式", "处理状态", "duplicate_of", "附件", "SHA-256", "限制"]
+MIXED_VISUAL_HEADERS = ["visual_id", "input_id", "覆盖单位", "视觉类型", "可见内容转录", "正文块", "展示方式", "处理状态", "附件", "SHA-256", "限制"]
 DIRECT_EVIDENCE_V4_HEADERS = ["证据ID", "动作或判断", "证据性质", "来源模态", "直接来源", "内容/视觉块", "原始页码或时间码", "证据家族", "限制"]
 OUTPUT_MAP_HEADERS = ["输出ID", "输出物", "产生步骤", "模板位置", "依据ID"]
 DESIGN_TYPES = {"artifact", "sequencing", "recordkeeping", "parameterization", "review_gate"}
@@ -369,6 +372,13 @@ def section_body(text: str, heading: str) -> str | None:
     return body
 
 
+def section_body_with_aliases(text: str, heading: str) -> tuple[str | None, int]:
+    aliases = METHOD_HEADING_ALIASES.get(heading, (heading,))
+    bodies = [section_body(text, candidate) for candidate in aliases]
+    present = [body for body in bodies if body is not None]
+    return (present[0] if present else None), len(present)
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -404,6 +414,25 @@ def coverage_anchor(text: str, destination: str) -> str | None:
     if not match:
         return None
     return match.group(1)
+
+
+def derived_visual_units(path: Path) -> set[str]:
+    """Return deterministic page or slide IDs for visual document inputs."""
+    suffix = path.suffix.lower()
+    if suffix == ".pdf" and PdfReader is not None:
+        try:
+            with quiet_pypdf_logger():
+                return {f"page-{number:02d}" for number in range(1, len(PdfReader(str(path)).pages) + 1)}
+        except Exception:
+            return set()
+    if suffix == ".pptx":
+        try:
+            with zipfile.ZipFile(path) as archive:
+                slides = [name for name in archive.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)]
+                return {f"slide-{number:02d}" for number in range(1, len(slides) + 1)}
+        except (OSError, zipfile.BadZipFile):
+            return set()
+    return set()
 
 
 def visual_anchor(text: str, destination: str) -> str | None:
@@ -535,6 +564,7 @@ def add_source_contract_findings(vault: Path, note: dict, findings: dict[str, li
             issue(findings["traceability_issues"], relative, "semantic_content_v4_requires_modalities")
         if (as_text(frontmatter.get("content_unit_scheme")), as_text(frontmatter.get("visual_unit_scheme"))) not in {
             ("stable-block-v2", "page-region-v1"),
+            ("stable-block-v2", "image-region-v1"),
             ("page-element-v1", "page-region-v2"),
             ("timestamp-topic-v1", "page-region-v1"),
             ("timestamp-topic-v1", "image-region-v1"),
@@ -605,6 +635,9 @@ def add_source_contract_findings(vault: Path, note: dict, findings: dict[str, li
                 issue(findings["traceability_issues"], relative, "manifest_input_count_does_not_match_rows", expected=as_text(frontmatter.get("source_input_count")), actual=len(input_rows))
         except ValueError:
             pass
+    requires_stable_coverage = v3 or (
+        v4 and as_text(frontmatter.get("compilation_mode")) == "source-primary-complete-v1"
+    )
     coverage_by_input: dict[str, list[list[str]]] = defaultdict(list)
     for row in coverage_rows:
         coverage_by_input[row[0]].append(row)
@@ -614,12 +647,12 @@ def add_source_contract_findings(vault: Path, note: dict, findings: dict[str, li
             issue(findings["traceability_issues"], relative, "coverage_requires_unit_and_expected_range", input_id=row[0])
         if not nonempty_cell(row[3]) and not nonempty_cell(row[4]):
             issue(findings["traceability_issues"], relative, "coverage_requires_destination_or_exclusion", input_id=row[0])
-        if v3 and nonempty_cell(row[3]):
+        if requires_stable_coverage and nonempty_cell(row[3]):
             anchor = coverage_anchor(note["text"], row[3])
             if not anchor:
-                issue(findings["traceability_issues"], relative, "v3_coverage_requires_stable_block_destination", input_id=row[0])
+                issue(findings["traceability_issues"], relative, "v4_coverage_requires_stable_block_destination", input_id=row[0])
             elif not block_anchor_exists(note["text"], anchor):
-                issue(findings["traceability_issues"], relative, "v3_coverage_references_missing_block", input_id=row[0], anchor=anchor)
+                issue(findings["traceability_issues"], relative, "v4_coverage_references_missing_block", input_id=row[0], anchor=anchor)
         if v4 and as_text(frontmatter.get("content_unit_scheme")) == "timestamp-topic-v1" and input_paths.get(row[0], Path()).suffix.lower() in {".txt", ".md", ".srt", ".vtt"}:
             expected_range = row[2].strip().lower()
             if not re.search(r"\b\d{1,2}:\d{2}\b\s*(?:–|-|至|到)\s*\b\d{1,2}:\d{2}\b", expected_range):
@@ -713,6 +746,54 @@ def add_source_contract_findings(vault: Path, note: dict, findings: dict[str, li
                 issue(findings["traceability_issues"], relative, "slide_photo_image_requires_exactly_one_visual_unit", input_id=input_id, count=len(by_input[input_id]))
         if as_text(frontmatter.get("acceptance_status")) == "accepted" and any(row[7] == "unreadable" for row in visual_table[1]):
             issue(findings["semantic_issues"], relative, "accepted_slide_photo_source_has_unreadable_visual")
+        return
+    static_mixed = (
+        as_text(frontmatter.get("source_adapter")) == "mixed"
+        and as_text(frontmatter.get("compilation_mode")) == "source-primary-complete-v1"
+        and as_text(frontmatter.get("visual_unit_scheme")) == "image-region-v1"
+    )
+    if static_mixed:
+        visual_table = markdown_table(audit_text, "视觉单元清单")
+        if not visual_table or visual_table[0] != MIXED_VISUAL_HEADERS or not visual_table[1] or any(len(row) != len(MIXED_VISUAL_HEADERS) for row in visual_table[1]):
+            issue(findings["traceability_issues"], relative, "mixed_visual_source_requires_visual_unit_manifest")
+            return
+        visual_ids: set[str] = set()
+        by_input: dict[str, list[list[str]]] = defaultdict(list)
+        for row in visual_table[1]:
+            visual_id, input_id, unit, _, visible, body_ref, display, state, attachment, digest, _ = row
+            if not re.fullmatch(r"V(?:\d+|-[A-Z]\d{3}-\d{2})", visual_id) or visual_id in visual_ids:
+                issue(findings["traceability_issues"], relative, "invalid_or_duplicate_mixed_visual_id", visual_id=visual_id)
+            visual_ids.add(visual_id)
+            by_input[input_id].append(row)
+            if input_id not in input_paths:
+                issue(findings["traceability_issues"], relative, "mixed_visual_references_unknown_input", input_id=input_id)
+            if state not in {"transcribed", "excluded", "unreadable"}:
+                issue(findings["invalid_property_values"], relative, "invalid_mixed_visual_state", visual_id=visual_id, value=state)
+            if not visible.strip() or len(visible.strip()) < 24:
+                issue(findings["semantic_issues"], relative, "mixed_visual_requires_specific_transcription", visual_id=visual_id)
+            if state == "transcribed":
+                anchor = coverage_anchor(note["text"], body_ref)
+                if not anchor or not block_anchor_exists(note["text"], anchor):
+                    issue(findings["traceability_issues"], relative, "mixed_visual_requires_reader_block", visual_id=visual_id)
+                if display not in {"inline", "folded"}:
+                    issue(findings["invalid_property_values"], relative, "invalid_mixed_visual_display", visual_id=visual_id, value=display)
+                matches = WIKILINK_RE.findall(attachment)
+                if len(matches) != 1:
+                    issue(findings["traceability_issues"], relative, "mixed_visual_requires_attachment", visual_id=visual_id)
+                else:
+                    attachment_path = resolve_input(vault, normalize_target(matches[0][1]))
+                    if not attachment_path:
+                        issue(findings["broken_links"], relative, "mixed_visual_attachment_missing", visual_id=visual_id)
+                    elif not HASH_RE.fullmatch(digest) or sha256_file(attachment_path) != digest:
+                        issue(findings["traceability_issues"], relative, "mixed_visual_attachment_hash_mismatch", visual_id=visual_id)
+            elif display not in {"excluded", "unreadable"}:
+                issue(findings["invalid_property_values"], relative, "invalid_mixed_visual_display", visual_id=visual_id, value=display)
+        for input_id, path in input_paths.items():
+            if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".heic"} and len(by_input[input_id]) != 1:
+                issue(findings["traceability_issues"], relative, "mixed_image_requires_exactly_one_visual_unit", input_id=input_id, count=len(by_input[input_id]))
+            expected_units = derived_visual_units(path)
+            if expected_units and {row[2] for row in by_input[input_id]} != expected_units:
+                issue(findings["traceability_issues"], relative, "mixed_derived_visual_coverage_mismatch", input_id=input_id)
         return
     has_pdf_input = any(path.suffix.lower() == ".pdf" for path in input_paths.values())
     full_pdf = has_pdf_input and as_text(frontmatter.get("content_fidelity")) == "full"
@@ -915,8 +996,7 @@ def add_method_contract_findings(notes: dict[Path, dict], aliases: dict[str, lis
         return
     headings = METHOD_V3_HEADINGS if (v3 or v4) else METHOD_V2_HEADINGS
     for heading in headings:
-        body = section_body(note["text"], heading)
-        count = len(re.findall(rf"^## {re.escape(heading)}\s*$", note["text"], re.MULTILINE))
+        body, count = section_body_with_aliases(note["text"], heading)
         if count != 1:
             issue(findings["semantic_issues"], relative, "method_v2_requires_one_section", heading=heading, actual=count)
         if body is None or not body:
@@ -944,6 +1024,13 @@ def add_method_contract_findings(notes: dict[Path, dict], aliases: dict[str, lis
             evidence_by_id[evidence_id] = row
             if not all((content, nature, source, locator, family, limitation)):
                 issue(findings["traceability_issues"], relative, "direct_evidence_requires_complete_row", evidence_id=evidence_id)
+            if v4 and content in {
+                "先收集并核对任务的必要事实",
+                "按课程给出的检查项或字段核对条件",
+                "将确认结果形成可回读记录",
+                "视觉材料呈现的字段/风险提示",
+            }:
+                issue(findings["semantic_issues"], relative, "method_evidence_uses_generic_label", evidence_id=evidence_id)
             if nature not in {"explicit-action", "speaker-claim", "case-result", "visual-observation", "missing"}:
                 issue(findings["invalid_property_values"], relative, "invalid_evidence_nature", evidence_id=evidence_id, value=nature)
             if v3 or v4:
@@ -1041,7 +1128,14 @@ def add_method_contract_findings(notes: dict[Path, dict], aliases: dict[str, lis
     template_table = markdown_table(note["text"], "工作模板")
     if not template_table or not template_table[0] or not template_table[1]:
         issue(findings["traceability_issues"], relative, "method_v2_requires_copyable_template")
-    if v3:
+    elif v4:
+        template_fields = {row[0] for row in template_table[1] if row and row[0] not in EMPTY_MARKERS}
+        if template_fields and template_fields <= {"订单/任务标识", "核心字段", "证据与限制", "结论与下一动作"}:
+            issue(findings["semantic_issues"], relative, "method_template_is_generic_shell")
+        flow_body = section_body(note["text"], "执行流程") or ""
+        if any(phrase in flow_body for phrase in ("相应责任人", "相关字段", "必要时升级")):
+            issue(findings["semantic_issues"], relative, "method_flow_uses_ambiguous_operator_or_check")
+    if v3 or v4:
         try:
             version = int(as_text(frontmatter.get("method_version")))
             if version < 1:
@@ -1061,9 +1155,20 @@ def add_method_contract_findings(notes: dict[Path, dict], aliases: dict[str, lis
                     candidates = aliases.get(normalize_target(matches[0][1]), []) if len(matches) == 1 else []
                     if len(candidates) != 1:
                         continue
-                    dry_run = notes[candidates[0]]["frontmatter"]
+                    dry_run_note = notes[candidates[0]]
+                    dry_run = dry_run_note["frontmatter"]
                     if as_text(dry_run.get("type")) == "method_dry_run" and as_text(dry_run.get("status")) == "complete" and as_text(dry_run.get("dry_run_status")) == "passed" and as_text(dry_run.get("method_version")) == str(version) and normalize_target(target_from_value(as_text(dry_run.get("method_note")))) == normalize_target(relative):
                         matched = True
+                        if v4:
+                            dry_text = dry_run_note["text"]
+                            required_dry_run_sections = ("已填输出物", "正常路径", "暂停或异常路径", "发现的摩擦与回写")
+                            missing_sections = [heading for heading in required_dry_run_sections if not section_body(dry_text, heading)]
+                            if missing_sections:
+                                issue(findings["semantic_issues"], relative, "dry_run_missing_operational_sections", headings=missing_sections)
+                            output_map = markdown_table(note["text"], "输出物映射")
+                            output_names = [row[1] for row in output_map[1]] if output_map and output_map[1] else []
+                            if output_names and not any(name in (section_body(dry_text, "已填输出物") or "") for name in output_names):
+                                issue(findings["semantic_issues"], relative, "dry_run_does_not_fill_named_output", outputs=output_names)
             if not matched:
                 issue(findings["traceability_issues"], relative, "passed_dry_run_requires_matching_record")
     if readiness == "tested" and parsed_applied < 1:
