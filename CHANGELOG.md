@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- 新增面向非技术用户的中文新手使用指南，涵盖 Starter Vault、四个 Skill、只读演练和可选本地工作台。
+
 ## v0.3.0 — 2026-08-23
 
 - Fixed report-table diagnostics and daily report calendar layout overflow; project boards now rank active projects by active task load while keeping archived projects ordered by recency.
