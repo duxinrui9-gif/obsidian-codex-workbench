@@ -10,8 +10,8 @@ This inventory is generated from direct runtime and development dependencies dec
 | @types/react | 19.2.7 | MIT |
 | @types/react-dom | 19.2.3 | MIT |
 | eslint | 9.39.1 | MIT |
-| eslint-config-next | 16.3.1 | MIT |
-| next | 16.3.1 | MIT |
+| eslint-config-next | 16.3.8 | MIT |
+| next | 16.3.8 | MIT |
 | react | 19.2.4 | MIT |
 | react-dom | 19.2.4 | MIT |
 | react-markdown | 10.1.0 | MIT |

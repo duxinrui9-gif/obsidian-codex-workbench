@@ -1448,6 +1448,24 @@ No performance threshold is supplied.
             self.assertIn("action_delivery_window_dates_out_of_order", reasons)
             self.assertIn("action_scheduled_before_start", reasons)
 
+    def test_reference_date_controls_overdue_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_action(vault, start_on="2026-08-14", due_on="2026-08-15", scheduled_for="2026-08-14")
+            report, status = self.run_audit(vault, "warning", "--as-of", "2026-08-14")
+            self.assertEqual(status, 0)
+            self.assertEqual(report["as_of"], "2026-08-14")
+            report, status = self.run_audit(vault, "warning", "--as-of", "2026-08-16")
+            self.assertEqual(status, 1)
+            self.assertIn("action_delivery_due_overdue", {item["reason"] for item in report["semantic_issues"]})
+            write_note(vault / "02_Knowledge/Card.md", KNOWLEDGE.replace("2099-01-01", "2026-08-15"))
+            report, _ = self.run_audit(vault, "warning", "--as-of", "2026-08-14")
+            self.assertEqual(report["overdue_review"], [])
+            report, _ = self.run_audit(vault, "warning", "--as-of", "2026-08-16")
+            self.assertTrue(report["overdue_review"])
+            result = subprocess.run([sys.executable, str(SCRIPT), "--vault", str(vault), "--as-of", "not-a-date"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+
     def test_action_delivery_window_reports_overdue_delivery(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             vault = Path(temporary)

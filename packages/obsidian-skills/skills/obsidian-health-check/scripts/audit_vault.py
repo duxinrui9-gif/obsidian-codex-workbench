@@ -1381,12 +1381,14 @@ def main() -> int:
     parser.add_argument("--vault", required=True, type=Path)
     parser.add_argument("--format", choices=("json", "text"), default="text")
     parser.add_argument("--fail-on", choices=("none", "warning", "error"), default="none")
+    parser.add_argument("--as-of", type=date.fromisoformat, default=None, metavar="YYYY-MM-DD", help="Reference date for overdue checks; defaults to today")
     parser.add_argument("--focus-file", action="append", default=[], metavar="PATH", help="Audit one Vault-relative Markdown file; repeatable")
     parser.add_argument("--path-prefix", action="append", default=[], metavar="DIR", help="Audit files below one Vault-relative directory; repeatable")
     parser.add_argument("--note-type", action="append", default=[], metavar="TYPE", help="Audit one note type; repeatable")
     parser.add_argument("--contract-version", action="append", default=[], metavar="VERSION", help="Audit source, evidence, or method contracts ending in this version, such as v4")
     parser.add_argument("--allow-empty-scope", action="store_true", help="Allow a bounded audit that selects no notes")
     args = parser.parse_args()
+    as_of = args.as_of or date.today()
     vault = args.vault.resolve()
     if not vault.is_dir():
         print(f"Vault not found: {vault}", file=sys.stderr)
@@ -1576,7 +1578,7 @@ def main() -> int:
                     issue(findings["invalid_property_values"], relative, "action_delivery_window_dates_out_of_order", start_on=start_on, due_on=due_on)
                 if scheduled_for and is_valid_date(scheduled_for) and date.fromisoformat(scheduled_for) < start_date:
                     issue(findings["invalid_property_values"], relative, "action_scheduled_before_start", scheduled_for=scheduled_for, start_on=start_on)
-                if action_state in ACTION_OPEN_STATES and due_date < date.today():
+                if action_state in ACTION_OPEN_STATES and due_date < as_of:
                     issue(findings["semantic_issues"], relative, "action_delivery_due_overdue", due_on=due_on)
             if start_on and due_on and is_valid_date(start_on) and is_valid_date(due_on) and start_on > due_on:
                 issue(findings["semantic_issues"], relative, "action_start_on_after_due_on", start_on=start_on, due_on=due_on)
@@ -1723,7 +1725,7 @@ def main() -> int:
             if backlinks[path] == 0:
                 issue(findings["orphan_knowledge"], note["relative"], "no_incoming_link")
             review_due = as_text(note["frontmatter"].get("review_due"))
-            if review_due and is_valid_date(review_due) and date.fromisoformat(review_due) <= date.today():
+            if review_due and is_valid_date(review_due) and date.fromisoformat(review_due) <= as_of:
                 issue(findings["overdue_review"], note["relative"], "review_due")
     validate_templates(vault, findings)
     unqualified_targets = {
@@ -1790,6 +1792,7 @@ def main() -> int:
         layers[classify_finding(finding)] += 1
     report = {
         "report_contract": "obsidian-health-v1",
+        "as_of": as_of.isoformat(),
         "vault": str(vault),
         "scope": "Markdown content plus referenced raw inputs; templates validated separately; attachments checked only when referenced",
         "scope_details": {

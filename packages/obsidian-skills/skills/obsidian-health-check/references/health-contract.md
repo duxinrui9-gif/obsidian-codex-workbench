@@ -2,6 +2,8 @@
 
 Use flat frontmatter. Required list fields are inline lists. Do not normalize optional legacy metadata unless the correction is deterministic.
 
+Overdue checks use today's local date by default. For reproducible historical fixtures, pass `--as-of YYYY-MM-DD`; the JSON report records the effective `as_of` date. This changes only the reference date, not validation severity or task state. Do not use a historical date to claim that a current Vault has no overdue work.
+
 The canonical audit emits `report_contract: obsidian-health-v1`, flat `findings` (`severity`, `category`, `file`, `reason`, `details`), retained grouped arrays for compatibility, and a summary split into current blockers, legacy debt, manual review, and information. It audits 00 processing records and referenced inputs, fully audits 01/02 contracts and all `project_reference` notes under `03_Topics/项目/**`, checks existing 04/05/06/90 rules, validates 98 templates separately, and checks only referenced 99 attachments. Exclude `.obsidian`, Git, cache, and backup directories.
 
 A `project_reference` requires `status`, `created`, `updated`, `asset_scope`, `sensitivity`, `evidence_status`, inline-list `aliases`, inline-list `codex_project_labels`, inline-list `workstreams`, literal-boolean `daily_report_enabled`, and `migration_batch`.

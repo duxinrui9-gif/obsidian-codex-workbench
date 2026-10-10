@@ -47,7 +47,7 @@
     },
     {
       "path": "skills/obsidian-health-check/references/health-contract.md",
-      "sha256": "4dc3c364432d2de0fddda7342077eb938e0ea011a3ee5df8e8254b374928dbcb"
+      "sha256": "e1f1f3187ac436481e26132e45c518ade3ed85f01fd821b84b32b9d3ac021045"
     },
     {
       "path": "skills/obsidian-health-check/references/licenses/kepano-obsidian.LICENSE",
@@ -63,11 +63,11 @@
     },
     {
       "path": "skills/obsidian-health-check/scripts/audit_vault.py",
-      "sha256": "77305aa8d0ebc9630029b6808305d844185483d3fee8490878de4df76da200ff"
+      "sha256": "9b01dbc14fb73f8ac508a1d7cfbf96a482db60e6d00fca640c13919658e230b7"
     },
     {
       "path": "skills/obsidian-health-check/scripts/test_audit_vault.py",
-      "sha256": "c2196b84d3b832ed0c1c6d4562cf23e106e6e43ba88ab907580ab6a229b1332e"
+      "sha256": "b4ef8a7ee0e8bf29448687a8c53ba9865906f4e543c6e2320566db8041f2409b"
     },
     {
       "path": "skills/obsidian-health-check/scripts/test_validate_method_batch.py",
