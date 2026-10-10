@@ -1,6 +1,6 @@
 ---
 name: obsidian-query
-description: Answer questions from the personal Obsidian Vault using verified semantic sources and runnable knowledge methods, with facts, inferences, compiler-designed operating scaffolds, conflicts, and explicit unknowns. Use when the user asks to search, verify, summarize, or answer how to act from 我的知识库 or an Obsidian evidence base.
+description: Answer questions from the user-selected Obsidian evidence Vault using verified semantic sources and runnable knowledge methods, with facts, inferences, compiler-designed operating scaffolds, conflicts, and explicit unknowns. Use when the user asks to search, verify, summarize, or answer how to act from 我的知识库 or an Obsidian evidence base.
 ---
 
 # Obsidian Query
@@ -8,6 +8,8 @@ description: Answer questions from the personal Obsidian Vault using verified se
 Answer from recorded evidence without silently turning prior answers into sources.
 
 ## Start
+
+First read [Vault selection](../obsidian-health-check/references/vault-selection.md); repository work does not authorize opening a personal Vault.
 
 1. Read the Vault's `AGENTS.md`, `00_知识库配置.md`, `00_首页.md`, and `90_System/知识库自增长说明.md`.
 2. Read [references/query-contract.md](references/query-contract.md).

@@ -1,6 +1,6 @@
 # Ingest contract
 
-Use only the personal Vault. Preserve original inputs and Inbox notes; derived sources, conclusions, and operating design stay separate from the raw material.
+Use only the explicitly selected Vault under the shared [Vault selection contract](../../obsidian-health-check/references/vault-selection.md). Preserve original inputs and Inbox notes; derived sources, conclusions, and operating design stay separate from the raw material.
 
 ## v4 source and knowledge contracts
 
@@ -33,3 +33,9 @@ For a runnable method, require goal, applicability and prohibition boundary, inp
 `03_Topics/项目/**` pages are readable project evidence. Cite their Vault path, `updated` date, and `evidence_status` for project-scoped answers. To extract cross-project knowledge or count an observation as applied validation, compile the page into a v4 source manifest with its SHA-256 and observed result. Do not modify project pages during ingest unless explicitly requested.
 
 Before evidence-affecting recompilation, create a backup and set the source to review or partial. Layout, image placement, width, or export styling do not require a card review. Changed terms, numbers, result boundaries, evidence nature, or stable-block meaning require affected E items to be reviewed before promotion; do not alter card maturity without explicit authorization.
+
+### Explicitly authorized project relocation
+
+Relocation or restructuring requires a separate explicit user request; ingest or cleanup alone does not authorize it. Before moving or rewriting hash-referenced project notes, retain a Vault-external recoverable backup, an old/new path and hash ledger, and exact-byte frozen inputs outside active navigation (Markdown snapshots may use `.md.raw`). Separate live navigation links, frozen-input locators, and historical audit values: an old directory embedded in a snapshot path is not a live link to rewrite. Preserve input IDs, summaries, input hashes, and combined hashes. Recover a mismatched historical input only from verifiably matching bytes; otherwise register the gap and compile the current version separately, never replace the historical hash to hide it.
+
+Preserve heading and block anchors still referenced by retained drafts, or update only link targets the user has authorized changing. For drafts whose bodies and review states must remain untouched, verify that applying the exact approved forward path mapping to each original reproduces the result; a global inverse substitution can falsely flag pre-existing canonical links. Check incoming links, image bytes, source locators, and review states against the baseline. Relocation alone never promotes source completeness, approval, or knowledge maturity; report new findings separately from evidenced pre-existing gaps.

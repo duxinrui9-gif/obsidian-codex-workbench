@@ -27,3 +27,7 @@ Default mode is report-only. Only an explicit `repair` or `apply` request may re
 Use `--fail-on error` for an acceptance gate: exit `1` reports in-scope findings and exit `2` means the audit could not run. `--focus-file`, `--path-prefix`, `--note-type`, and `--contract-version` narrow a report; a scope that selects no auditable note returns `2` unless `--allow-empty-scope` is explicit. `obsidian-health-v1` keeps `scope` as its legacy description string and adds `scope_details` for filters and selected files. JSON is the machine contract; `--format text` is a concise human report.
 
 Markdown symlinks and resolved paths outside the Vault are never read. They produce an `external_symlink_note` fatal finding; dependency and build directories are excluded from discovery.
+
+## Optional task relationships
+
+Use [action relationships](action-relationships.md) for `parent_action`, `subactions`, and `depends_on`. Missing fields remain valid. Errors block acceptance; duplicate or conflicting relationships and closed tasks with open prerequisites are review findings. Never derive a parent completion state from one child or a percentage. Delivery dates must be paired and ordered; scheduling before the start date is invalid, while an overdue open delivery is a review finding. Focused audit findings remain limited to the selected notes and necessary evidence.

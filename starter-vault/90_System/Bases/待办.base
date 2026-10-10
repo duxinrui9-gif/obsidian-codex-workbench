@@ -29,6 +29,12 @@ properties:
     displayName: 结转次数
   updated:
     displayName: 更新日期
+  parent_action:
+    displayName: 父任务
+  subactions:
+    displayName: 子任务
+  depends_on:
+    displayName: 前置依赖
 views:
   - type: table
     name: 今日执行
@@ -76,6 +82,7 @@ views:
       - scheduled_for
       - review_on
       - file.name
+      - depends_on
   - type: table
     name: 已关闭
     filters:

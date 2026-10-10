@@ -37,6 +37,12 @@ scripts/bootstrap.sh --vault "$HOME/Documents/My Obsidian Starter" --apply --ins
 
 第一条命令只预检。第二条命令只会创建不存在或为空的目录；如发现同名已安装 Skill，会停止而不是覆盖。详见 [00_从这里开始.md](00_从这里开始.md) 与 [Codex onboarding](docs/CODEX-ONBOARDING.md)。
 
+## 最新 Skill 改进（主分支）
+
+四个 Skill 使用明确选定的 Vault；仓库、Starter 和文档工作不自动访问个人知识库。Health 支持可选父子任务与前置依赖检查，Ingest 对用户授权迁移保留路径及 hash 证据。旧任务卡无需补字段，父任务完成不按子任务比例推导。
+
+这些更新位于 GitHub `main`，尚未创建新的 Release；已有 v0.3.0 ZIP 不会被重写。需要最新 Skill 时使用主分支的 `packages/obsidian-skills`，安装前遵循其同名保护和备份规则。
+
 ## 日常维护
 
 ```bash

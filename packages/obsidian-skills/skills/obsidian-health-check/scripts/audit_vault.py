@@ -50,6 +50,7 @@ KNOWLEDGE_V2_REQUIRED = {"evidence_contract", "knowledge_kind", "operational_rea
 REVIEW_COMMON_REQUIRED = {"status", "review_period", "date", "created", "updated", "asset_scope", "sensitivity", "evidence_status", "source_notes"}
 DAILY_REVIEW_REQUIRED = {"projects", "source_threads", "has_legacy_plan", "has_legacy_report", "migration_batch"}
 LIST_PROPERTIES = {"projects", "source_threads", "source_notes", "contradicts", "supersedes", "knowledge_used", "playbooks_used", "topics", "tags", "inputs", "outputs", "participants", "source_inputs", "evidence_families", "aliases", "codex_project_labels", "workstreams", "dry_run_notes", "known_friction", "profile_basis", "completion_evidence", "action_items", "relationship_roles", "collaboration_topics"}
+LIST_PROPERTIES |= {"subactions", "depends_on"}
 WIKILINK_RE = re.compile(r"(?P<embed>!)?\[\[([^\]]+)\]\]")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -986,14 +987,6 @@ def add_method_contract_findings(notes: dict[Path, dict], aliases: dict[str, lis
         issue(findings["semantic_issues"], relative, "evergreen_has_unresolved_conflict")
     if kind != "method" or as_text(frontmatter.get("method_contract")) != expected_method_contract:
         return
-    # Existing v3-format ledgers promoted to v4 for their verified visual
-    # sources stay readable during incremental migration; new v4 cards below
-    # must use the richer modality/raw-locator ledger.
-    legacy_v4_ledger = v4 and markdown_table(note["text"], "直接证据台账") and markdown_table(note["text"], "直接证据台账")[0] == DIRECT_EVIDENCE_HEADERS
-    if legacy_v4_ledger:
-        return
-    if v4 and markdown_table(note["text"], "直接证据台账") and tuple(markdown_table(note["text"], "直接证据台账")[0]) not in {tuple(DIRECT_EVIDENCE_HEADERS), tuple(DIRECT_EVIDENCE_V4_HEADERS)}:
-        return
     headings = METHOD_V3_HEADINGS if (v3 or v4) else METHOD_V2_HEADINGS
     for heading in headings:
         body, count = section_body_with_aliases(note["text"], heading)
@@ -1005,11 +998,6 @@ def add_method_contract_findings(notes: dict[Path, dict], aliases: dict[str, lis
     evidence_by_id: dict[str, list[str]] = {}
     expected_evidence_headers = DIRECT_EVIDENCE_V4_HEADERS if v4 else DIRECT_EVIDENCE_HEADERS
     allowed_evidence_headers = {tuple(expected_evidence_headers)}
-    # v4 method cards migrated from a v3 ledger remain structurally readable
-    # while their source locators are being recompiled; newly authored v4 cards
-    # use the richer modality/raw-locator header.
-    if v4:
-        allowed_evidence_headers.add(tuple(DIRECT_EVIDENCE_HEADERS))
     if not evidence_table or tuple(evidence_table[0]) not in allowed_evidence_headers or not evidence_table[1]:
         issue(findings["traceability_issues"], relative, "method_v2_requires_direct_evidence_ledger")
     else:
@@ -1264,6 +1252,130 @@ def validate_templates(vault: Path, findings: dict[str, list[dict]]) -> None:
                 issue(findings["template_issues"], relative, "workbench_template_requires_inline_list", property=list_field)
 
 
+def add_action_relationship_findings(notes: dict, aliases: dict, findings: dict) -> None:
+    """Validate optional action edges without inferring or writing task state."""
+    actions = {path: note for path, note in notes.items() if as_text(note["frontmatter"].get("type")) == "action"}
+    parents: dict[Path, Path] = {}
+    children: dict[Path, set[Path]] = defaultdict(set)
+    dependencies: dict[Path, set[Path]] = defaultdict(set)
+    hierarchy: dict[Path, set[Path]] = defaultdict(set)
+
+    def target_for(path: Path, field: str, raw: Any) -> Path | None:
+        note = actions[path]
+        match = WIKILINK_RE.fullmatch(raw.strip()) if isinstance(raw, str) else None
+        if not match or match.group("embed") or "#" in match.group(2):
+            issue(findings["action_relationship_errors"], note["relative"], "action_relationship_requires_note_link", property=field)
+            return None
+        target = normalize_target(match.group(2))
+        candidates = aliases.get(target, [])
+        # Exact Vault paths take precedence over suffix-name collisions.
+        exact = [candidate for candidate in candidates if notes[candidate]["relative"][:-3] == target]
+        candidates = exact or candidates
+        if len(candidates) != 1:
+            issue(findings["action_relationship_errors"], note["relative"], "action_relationship_unresolved", property=field, target=target)
+            return None
+        resolved = candidates[0]
+        if resolved not in actions:
+            issue(findings["action_relationship_errors"], note["relative"], "action_relationship_target_not_action", property=field, target=target)
+            return None
+        if resolved == path:
+            issue(findings["action_relationship_errors"], note["relative"], "action_relationship_self_reference", property=field)
+            return None
+        return resolved
+
+    for path, note in actions.items():
+        fm = note["frontmatter"]
+        parent = fm.get("parent_action", "")
+        if not isinstance(parent, str):
+            issue(findings["action_relationship_errors"], note["relative"], "action_relationship_requires_note_link", property="parent_action")
+        elif parent:
+            resolved = target_for(path, "parent_action", parent)
+            if resolved is not None:
+                parents[path] = resolved
+                hierarchy[path].add(resolved)
+        for field, graph in (("subactions", children), ("depends_on", dependencies)):
+            raw_values = fm.get(field, [])
+            if not isinstance(raw_values, list):
+                # The normal Properties check reports the invalid list type.
+                continue
+            for raw in raw_values:
+                resolved = target_for(path, field, raw)
+                if resolved is None:
+                    continue
+                if resolved in graph[path]:
+                    issue(findings["action_relationship_reviews"], note["relative"], "duplicate_action_relationship", property=field, target=actions[resolved]["relative"])
+                graph[path].add(resolved)
+                if field == "subactions":
+                    hierarchy[resolved].add(path)
+
+    for child, parent in parents.items():
+        if "subactions" in actions[parent]["frontmatter"] and child not in children[parent]:
+            issue(findings["action_relationship_reviews"], actions[child]["relative"], "parent_subactions_missing_child", parent=actions[parent]["relative"])
+    for parent, targets in children.items():
+        for child in targets:
+            child_parent = actions[child]["frontmatter"].get("parent_action", "")
+            if child_parent and parents.get(child) != parent:
+                issue(findings["action_relationship_reviews"], actions[parent]["relative"], "child_parent_conflict", child=actions[child]["relative"])
+            elif "parent_action" in actions[child]["frontmatter"] and not child_parent:
+                issue(findings["action_relationship_reviews"], actions[parent]["relative"], "child_parent_not_recorded", child=actions[child]["relative"])
+
+    known_children: dict[Path, set[Path]] = defaultdict(set)
+    for child, targets in hierarchy.items():
+        for parent in targets:
+            known_children[parent].add(child)
+    for path, note in actions.items():
+        if as_text(note["frontmatter"].get("action_state")) != "done":
+            continue
+        open_children = sorted(actions[p]["relative"] for p in known_children[path] if as_text(actions[p]["frontmatter"].get("action_state")) in ACTION_OPEN_STATES)
+        if open_children:
+            issue(findings["action_relationship_reviews"], note["relative"], "done_parent_has_open_subactions", children=open_children)
+        incomplete = sorted(actions[p]["relative"] for p in dependencies[path] if as_text(actions[p]["frontmatter"].get("action_state")) != "done")
+        if incomplete:
+            issue(findings["action_relationship_reviews"], note["relative"], "done_action_has_unverified_dependencies", dependencies=incomplete)
+
+    # Two iterative passes find every member of a cycle, including overlapping
+    # branches, without recursion limits on long dependency chains.
+    for field, graph in (("hierarchy", hierarchy), ("depends_on", dependencies)):
+        visited: set[Path] = set()
+        finished: list[Path] = []
+        for root in sorted(actions):
+            if root in visited:
+                continue
+            visited.add(root)
+            stack = [(root, iter(sorted(graph.get(root, ()))))]
+            while stack:
+                node, neighbors = stack[-1]
+                target = next(neighbors, None)
+                if target is None:
+                    finished.append(node)
+                    stack.pop()
+                elif target not in visited:
+                    visited.add(target)
+                    stack.append((target, iter(sorted(graph.get(target, ())))))
+        reverse: dict[Path, set[Path]] = defaultdict(set)
+        for node, targets in graph.items():
+            for target in targets:
+                reverse[target].add(node)
+        visited.clear()
+        for root in reversed(finished):
+            if root in visited:
+                continue
+            members: list[Path] = []
+            pending = [root]
+            visited.add(root)
+            while pending:
+                node = pending.pop()
+                members.append(node)
+                for target in reverse.get(node, ()):
+                    if target not in visited:
+                        visited.add(target)
+                        pending.append(target)
+            if len(members) > 1:
+                files = sorted(actions[node]["relative"] for node in members)
+                for node in sorted(members):
+                    issue(findings["action_relationship_errors"], actions[node]["relative"], "action_relationship_cycle", property=field, files=files)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--vault", required=True, type=Path)
@@ -1454,6 +1566,18 @@ def main() -> int:
                 issue(findings["invalid_property_values"], relative, "carryover_count_must_be_nonnegative_integer")
             start_on = as_text(frontmatter.get("start_on"))
             due_on = as_text(frontmatter.get("due_on"))
+            scheduled_for = as_text(frontmatter.get("scheduled_for"))
+            if bool(start_on) != bool(due_on):
+                issue(findings["invalid_property_values"], relative, "action_delivery_window_requires_start_and_due")
+            elif start_on and due_on and is_valid_date(start_on) and is_valid_date(due_on):
+                start_date = date.fromisoformat(start_on)
+                due_date = date.fromisoformat(due_on)
+                if start_date > due_date:
+                    issue(findings["invalid_property_values"], relative, "action_delivery_window_dates_out_of_order", start_on=start_on, due_on=due_on)
+                if scheduled_for and is_valid_date(scheduled_for) and date.fromisoformat(scheduled_for) < start_date:
+                    issue(findings["invalid_property_values"], relative, "action_scheduled_before_start", scheduled_for=scheduled_for, start_on=start_on)
+                if action_state in ACTION_OPEN_STATES and due_date < date.today():
+                    issue(findings["semantic_issues"], relative, "action_delivery_due_overdue", due_on=due_on)
             if start_on and due_on and is_valid_date(start_on) and is_valid_date(due_on) and start_on > due_on:
                 issue(findings["semantic_issues"], relative, "action_start_on_after_due_on", start_on=start_on, due_on=due_on)
         if note_type == "topic" and as_text(frontmatter.get("topic_kind")) == "collaborator_reference":
@@ -1499,6 +1623,8 @@ def main() -> int:
             if not target or target.startswith(("http://", "https://", "mailto:")) or (Path(target).suffix and not target.endswith(".md")) or target.startswith("98_Templates/"):
                 continue
             candidates = aliases.get(target, [])
+            exact = [candidate for candidate in candidates if notes[candidate]["relative"][:-3] == target]
+            candidates = exact or candidates
             moved_paths = {
                 "02_Knowledge/方法/可复用Skill应分离入口、细则与验收": "02_Knowledge/原则/AI组织/可复用Skill应分离入口、细则与验收",
                 "02_Knowledge/方法/技术SEO整改需要台账、变更验证与复查指标闭环": "02_Knowledge/原则/SEO/技术SEO整改需要台账、变更验证与复查指标闭环",
@@ -1524,6 +1650,8 @@ def main() -> int:
             issue(findings["semantic_issues"], note["relative"], "duplicate_action_id", action_id=action_id, other_file=action_paths_by_id[action_id].relative_to(vault).as_posix())
         else:
             action_paths_by_id[action_id] = path
+
+    add_action_relationship_findings(notes, aliases, findings)
 
     def action_ids_from_items(note: dict) -> set[str]:
         action_ids: set[str] = set()
@@ -1649,8 +1777,8 @@ def main() -> int:
         return 2
     severity_groups = {
         "fatal": ("malformed_frontmatter", "unreadable_notes", "external_symlink_notes"),
-        "error": ("missing_properties", "empty_properties", "invalid_property_values", "traceability_issues", "broken_links", "template_issues"),
-        "warning": ("semantic_issues", "ambiguous_links", "orphan_knowledge", "duplicate_title_candidates", "duplicate_content_hashes", "overdue_review", "legacy_metadata"),
+        "error": ("missing_properties", "empty_properties", "invalid_property_values", "traceability_issues", "broken_links", "template_issues", "action_relationship_errors"),
+        "warning": ("semantic_issues", "ambiguous_links", "orphan_knowledge", "duplicate_title_candidates", "duplicate_content_hashes", "overdue_review", "legacy_metadata", "action_relationship_reviews"),
     }
     report_findings: dict[str, list[dict]] = defaultdict(list)
     for category, items in findings.items():

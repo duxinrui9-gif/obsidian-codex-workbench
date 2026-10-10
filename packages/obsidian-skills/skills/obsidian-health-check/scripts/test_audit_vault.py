@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from datetime import date, timedelta
 from pathlib import Path
 
 try:
@@ -1324,6 +1325,139 @@ No performance threshold is supplied.
             write_note(vault / "05_Review/Daily/Plan/2026-08-11.md", DAILY_ACTION_PLAN.format(date="2026-08-11", action_items=f'["{action_link}"]'))
             report, status = self.run_audit(vault, "warning")
             self.assertEqual(status, 0)
+
+
+    def set_relationships(self, path: Path, **fields: str) -> None:
+        text = path.read_text(encoding="utf-8")
+        text = text.replace("\n---\n", "\n" + "\n".join(f"{key}: {value}" for key, value in fields.items()) + "\n---\n", 1)
+        path.write_text(text, encoding="utf-8")
+
+    def test_optional_action_relationships_accept_legacy_and_valid_edges(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            parent = self.write_action(vault)
+            child = self.write_action(vault, "ACT-20260808-002")
+            dependency = self.write_action(vault, "ACT-20260808-003")
+            self.set_relationships(parent, subactions=f'["[[{child.stem}]]"]')
+            self.set_relationships(child, parent_action=f'"[[{parent.stem}]]"', depends_on=f'["[[{dependency.stem}]]"]')
+            before = {p: p.read_bytes() for p in vault.rglob("*.md")}
+            report, status = self.run_audit(vault, "warning", "--note-type", "action")
+            self.assertEqual(status, 0)
+            self.assertEqual(report["action_relationship_errors"], [])
+            self.assertEqual(report["action_relationship_reviews"], [])
+            self.assertEqual(before, {p: p.read_bytes() for p in vault.rglob("*.md")})
+
+    def test_action_relationship_rejects_missing_non_action_and_self(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            action = self.write_action(vault)
+            write_note(vault / "02_Knowledge/Card.md", KNOWLEDGE)
+            self.set_relationships(action, parent_action=f'"[[{action.stem}]]"', depends_on='["[[Missing]]", "[[Card]]"]')
+            report, status = self.run_audit(vault, "error", "--note-type", "action")
+            self.assertEqual(status, 1)
+            reasons = {item["reason"] for item in report["action_relationship_errors"]}
+            self.assertEqual(reasons, {"action_relationship_self_reference", "action_relationship_unresolved", "action_relationship_target_not_action"})
+
+    def test_action_relationship_types_are_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            action = self.write_action(vault)
+            self.set_relationships(action, parent_action='[]', depends_on='"[[Missing]]"', subactions='[plain-text]')
+            report, status = self.run_audit(vault, "error", "--note-type", "action")
+            self.assertEqual(status, 1)
+            self.assertTrue(any(item.get("property") == "depends_on" for item in report["invalid_property_values"]))
+            self.assertEqual(len(report["action_relationship_errors"]), 2)
+
+    def test_dependency_cycle_reports_all_overlapping_members_in_focus(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            paths = [self.write_action(vault, f"ACT-20260808-{i:03d}") for i in range(1, 4)]
+            self.set_relationships(paths[0], depends_on=f'["[[{paths[1].stem}]]", "[[{paths[2].stem}]]"]')
+            self.set_relationships(paths[1], depends_on=f'["[[{paths[0].stem}]]"]')
+            self.set_relationships(paths[2], depends_on=f'["[[{paths[1].stem}]]"]')
+            report, status = self.run_audit(vault, "error", "--focus-file", paths[2].relative_to(vault).as_posix())
+            self.assertEqual(status, 1)
+            cycles = [item for item in report["action_relationship_errors"] if item["reason"] == "action_relationship_cycle"]
+            self.assertEqual(len(cycles), 1)
+            self.assertEqual(len(cycles[0]["files"]), 3)
+            self.assertIsInstance(report["scope"], str)
+
+    def test_subactions_only_cycle_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            first = self.write_action(vault)
+            second = self.write_action(vault, "ACT-20260808-002")
+            self.set_relationships(first, subactions=f'["[[{second.stem}]]"]')
+            self.set_relationships(second, subactions=f'["[[{first.stem}]]"]')
+            report, status = self.run_audit(vault, "error", "--note-type", "action")
+            self.assertEqual(status, 1)
+            self.assertEqual(len(report["action_relationship_errors"]), 2)
+
+    def test_done_parent_open_child_and_cancelled_dependency_require_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            parent = self.write_action(vault, status="archived", action_state="done", closed_at="2026-08-10", closed_reason="accepted", completion_evidence='["accepted output"]')
+            child = self.write_action(vault, "ACT-20260808-002")
+            dependency = self.write_action(vault, "ACT-20260808-003", status="archived", action_state="cancelled", closed_at="2026-08-10", closed_reason="cancelled")
+            self.set_relationships(parent, subactions=f'["[[{child.stem}]]"]', depends_on=f'["[[{dependency.stem}]]"]')
+            report, status = self.run_audit(vault, "error", "--note-type", "action")
+            self.assertEqual(status, 0)
+            reasons = {item["reason"] for item in report["action_relationship_reviews"]}
+            self.assertEqual(reasons, {"done_parent_has_open_subactions", "done_action_has_unverified_dependencies"})
+            self.assertIn("action_state: done", parent.read_text(encoding="utf-8"))
+
+    def test_conflicting_and_duplicate_relationships_are_reviews(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            first = self.write_action(vault)
+            second = self.write_action(vault, "ACT-20260808-002")
+            child = self.write_action(vault, "ACT-20260808-003")
+            self.set_relationships(first, subactions=f'["[[{child.stem}]]", "[[{child.stem}]]"]')
+            self.set_relationships(second, subactions='[]')
+            self.set_relationships(child, parent_action=f'"[[{second.stem}]]"')
+            report, status = self.run_audit(vault, "warning", "--note-type", "action")
+            self.assertEqual(status, 1)
+            self.assertEqual({item["reason"] for item in report["action_relationship_reviews"]}, {"duplicate_action_relationship", "child_parent_conflict", "parent_subactions_missing_child"})
+
+    def test_exact_relation_path_wins_over_suffix_collision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            first = self.write_action(vault)
+            target = self.write_action(vault, "ACT-20260808-002")
+            nested = vault / "Archive" / target.relative_to(vault)
+            write_note(nested, target.read_text(encoding="utf-8").replace("ACT-20260808-002", "ACT-20260808-003"))
+            self.set_relationships(first, depends_on=f'["[[{target.relative_to(vault).with_suffix("").as_posix()}]]"]')
+            report, _ = self.run_audit(vault, "error", "--focus-file", first.relative_to(vault).as_posix())
+            self.assertEqual(report["action_relationship_errors"], [])
+            self.assertEqual(report["ambiguous_links"], [])
+
+    def test_action_delivery_window_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            self.write_action(vault, start_on="2099-08-10", due_on="2099-08-12", scheduled_for="2099-08-10")
+            report, status = self.run_audit(vault, "warning", "--note-type", "action")
+            self.assertEqual(status, 0)
+
+            self.write_action(vault, action_id="ACT-20260808-002", start_on="2026-08-10", due_on="", scheduled_for="2026-08-10")
+            self.write_action(vault, action_id="ACT-20260808-003", start_on="2026-08-12", due_on="2026-08-10", scheduled_for="2026-08-12")
+            self.write_action(vault, action_id="ACT-20260808-004", start_on="2026-08-11", due_on="2026-08-12", scheduled_for="2026-08-10")
+            report, status = self.run_audit(vault, "warning", "--note-type", "action")
+            self.assertEqual(status, 1)
+            reasons = {item["reason"] for item in report["invalid_property_values"]}
+            self.assertIn("action_delivery_window_requires_start_and_due", reasons)
+            self.assertIn("action_delivery_window_dates_out_of_order", reasons)
+            self.assertIn("action_scheduled_before_start", reasons)
+
+    def test_action_delivery_window_reports_overdue_delivery(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            due_on = date.today() - timedelta(days=1)
+            start_on = due_on - timedelta(days=1)
+            self.write_action(vault, start_on=start_on.isoformat(), due_on=due_on.isoformat(), scheduled_for=start_on.isoformat())
+            report, status = self.run_audit(vault, "warning", "--note-type", "action")
+            self.assertEqual(status, 1)
+            reasons = {item["reason"] for item in report["semantic_issues"]}
+            self.assertIn("action_delivery_due_overdue", reasons)
 
 
 if __name__ == "__main__":

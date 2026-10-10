@@ -1,6 +1,6 @@
 ---
 name: obsidian-maturity-audit
-description: Audit knowledge-card evidence maturity, operational readiness, confidence, evidence-family independence, applied validation, contradictions, supersession, and review dates in the personal Obsidian Vault. Use when the user asks for 知识成熟度审计, method readiness review, evidence review, stale-card review, contradiction review, or maturity promotion in 我的知识库.
+description: Audit knowledge-card evidence maturity, operational readiness, confidence, evidence-family independence, applied validation, contradictions, supersession, and review dates in the user-selected Obsidian evidence Vault. Use when the user asks for 知识成熟度审计, method readiness review, evidence review, stale-card review, contradiction review, or maturity promotion in 我的知识库.
 ---
 
 # Obsidian Maturity Audit
@@ -8,6 +8,8 @@ description: Audit knowledge-card evidence maturity, operational readiness, conf
 Audit the evidence behind knowledge cards without deleting records or promoting unsupported claims.
 
 ## Start
+
+First read [Vault selection](../obsidian-health-check/references/vault-selection.md); repository work does not authorize opening a personal Vault.
 
 1. Read the Vault's `AGENTS.md`, `00_知识库配置.md`, `00_首页.md`, and `90_System/知识库自增长说明.md`.
 2. Read [references/maturity-contract.md](references/maturity-contract.md).

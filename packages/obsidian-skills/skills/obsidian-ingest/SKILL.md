@@ -1,6 +1,6 @@
 ---
 name: obsidian-ingest
-description: Organize explicitly selected material in the personal Obsidian Vault into preserved raw inputs, complete semantic evidence, and usable evidence-bound knowledge. Use when the user asks to process a named 00_Inbox file or folder, organize documents/images/audio/websites/social links/conversations/data, or turn direct evidence into a principle, case, method fragment, or runnable method in 我的知识库.
+description: Organize explicitly selected material in the user-selected Obsidian evidence Vault into preserved raw inputs, complete semantic evidence, and usable evidence-bound knowledge. Use when the user asks to process a named 00_Inbox file or folder, organize documents/images/audio/websites/social links/conversations/data, or turn direct evidence into a principle, case, method fragment, or runnable method in 我的知识库.
 ---
 
 # Obsidian Ingest
@@ -8,6 +8,8 @@ description: Organize explicitly selected material in the personal Obsidian Vaul
 Compile a user-selected input package into traceable knowledge. Preserve originals and do not turn project evidence into project-state records.
 
 ## Start
+
+First read [Vault selection](../obsidian-health-check/references/vault-selection.md); repository work does not authorize opening a personal Vault.
 
 1. Read the Vault's `AGENTS.md`, `00_知识库配置.md`, `00_首页.md`, and `90_System/知识库自增长说明.md`.
 2. Read [references/ingest-contract.md](references/ingest-contract.md). For any new or rebuilt 02 method, also read [method operationalization](references/method-operationalization.md). Then load only the relevant modality reference: [source adapters](references/source-adapters.md), [PDF semantic compilation](references/pdf-semantic-compilation.md), [learning compilation](references/learning-semantic-compilation.md), [lecture cleaning](references/transcript-cleaning.md), or [reader export](references/reader-export.md).

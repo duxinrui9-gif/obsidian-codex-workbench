@@ -1,6 +1,6 @@
 ---
 name: obsidian-health-check
-description: Check the personal Obsidian Vault for malformed Properties, broken or ambiguous links, raw-input hashes, coverage manifests, evidence-contract integrity, orphan cards, duplicate candidates, and deterministic structural repairs. Use when the user asks for 知识库体检, Obsidian lint, evidence-chain checks, link checks, metadata checks, or Vault health.
+description: Check the user-selected Obsidian evidence Vault for malformed Properties, broken or ambiguous links, raw-input hashes, coverage manifests, evidence-contract integrity, orphan cards, duplicate candidates, and deterministic structural repairs. Use when the user asks for 知识库体检, Obsidian lint, evidence-chain checks, link checks, metadata checks, or Vault health.
 ---
 
 # Obsidian Health Check
@@ -9,8 +9,10 @@ Inspect Vault structure in report mode. Apply deterministic repairs only when th
 
 ## Start
 
+First read [Vault selection](references/vault-selection.md); repository work does not authorize opening a personal Vault.
+
 1. Read the Vault's `AGENTS.md`, `00_知识库配置.md`, `00_首页.md`, and `90_System/知识库自增长说明.md`.
-2. Read [references/health-contract.md](references/health-contract.md).
+2. Read [references/health-contract.md](references/health-contract.md). For optional task hierarchy and dependencies, read [action relationships](references/action-relationships.md).
 3. Run `scripts/audit_vault.py --vault <vault-root> --format json --fail-on error`. Exit `1` means the report found in-scope governance errors; exit `2` means the command itself failed. Use `--focus-file`, `--path-prefix`, `--note-type`, or `--contract-version v4` for a bounded pass; an empty bounded result is an error unless `--allow-empty-scope` is explicit. For a bounded multi-method batch, also run `scripts/validate_method_batch.py --vault <vault-root> --path-prefix <02-method-dir> --fail-on warning`. This Skill owns the canonical `obsidian-health-v1` audit.
 
 ## Workflow
@@ -22,6 +24,6 @@ Inspect Vault structure in report mode. Apply deterministic repairs only when th
 
 ## Boundaries
 
-- Fully inspect all `project_reference` notes under `03_Topics/项目/**` for Properties, links, duplicate targets, and evidence references. Do not infer or repair project facts.
+- A full-Vault audit inspects all `project_reference` notes under `03_Topics/项目/**`; focused checks inspect only selected notes and necessary evidence. Do not infer or repair project facts.
 - Do not assess evidence independence, practice validation, promotion, or archive readiness here. Use `$obsidian-maturity-audit` for those decisions.
 - This Skill is manual and user-initiated; a disabled legacy scheduler must not invoke it.

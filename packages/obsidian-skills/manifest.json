@@ -35,23 +35,39 @@
     },
     {
       "path": "skills/obsidian-health-check/SKILL.md",
-      "sha256": "413aada7781a38c09b01acb47a599a0d182e831bf8e13773f6c8b1da66ac21e9"
+      "sha256": "5152247f1362c087bdac4781f4c9f8f6e6608a63fd7efbaa182d44af2ff39daa"
     },
     {
       "path": "skills/obsidian-health-check/agents/openai.yaml",
       "sha256": "cb2897187e2563c4c398ccd9184276051925c6331e9a2a3e863c4b46716e1980"
     },
     {
+      "path": "skills/obsidian-health-check/references/action-relationships.md",
+      "sha256": "6047ed563d5ba55a215b760a83331b45c50aa165480fefdb2a502ca8ea9e9240"
+    },
+    {
       "path": "skills/obsidian-health-check/references/health-contract.md",
-      "sha256": "5e183abce20799025c30b208ab33cbd39b8d8d008c58d6b300c6f88408515522"
+      "sha256": "4dc3c364432d2de0fddda7342077eb938e0ea011a3ee5df8e8254b374928dbcb"
+    },
+    {
+      "path": "skills/obsidian-health-check/references/licenses/kepano-obsidian.LICENSE",
+      "sha256": "64c64d48361edfe8610016441bf593256ea9b67f133b00f47c55aa29ee878567"
+    },
+    {
+      "path": "skills/obsidian-health-check/references/licenses/pm-skills.LICENSE",
+      "sha256": "a2c922f9b81b4f40347ddfa79c38eda0f1278b5a6d108bd4099b4da254c774ee"
+    },
+    {
+      "path": "skills/obsidian-health-check/references/vault-selection.md",
+      "sha256": "13af966113b41a79e1b6e3a5cef505b7e50f741e5bd48e31f96902dfe773dbcb"
     },
     {
       "path": "skills/obsidian-health-check/scripts/audit_vault.py",
-      "sha256": "1d7c1ae62e976768f9ab7eff6d3a4bc8f46fc265eb16353334ed4ba76849c4d1"
+      "sha256": "77305aa8d0ebc9630029b6808305d844185483d3fee8490878de4df76da200ff"
     },
     {
       "path": "skills/obsidian-health-check/scripts/test_audit_vault.py",
-      "sha256": "0b4e10a75b84f11e13f7e9d4ddd8e3c4756dfaf449e12e6671eed0264cb5718b"
+      "sha256": "c2196b84d3b832ed0c1c6d4562cf23e106e6e43ba88ab907580ab6a229b1332e"
     },
     {
       "path": "skills/obsidian-health-check/scripts/test_validate_method_batch.py",
@@ -63,7 +79,7 @@
     },
     {
       "path": "skills/obsidian-ingest/SKILL.md",
-      "sha256": "6b73730923ebf51c113324bdbd257366e9b36d12c3f00ac7d4271b922e78f980"
+      "sha256": "7cf8bdeb20a7917db4d2a00e40bfa51ac335e1f7390d8c9ecb067a677994e0ab"
     },
     {
       "path": "skills/obsidian-ingest/agents/openai.yaml",
@@ -71,7 +87,7 @@
     },
     {
       "path": "skills/obsidian-ingest/references/ingest-contract.md",
-      "sha256": "ffab4943a1f5f7846e8795e35f1d8d2c963f4f763a4ab83739a10cb1935a5dfb"
+      "sha256": "899989c016527c1e449379147e1f93251f8e87049aaabf4ef42e0aa76d6de526"
     },
     {
       "path": "skills/obsidian-ingest/references/learning-semantic-compilation.md",
@@ -115,7 +131,7 @@
     },
     {
       "path": "skills/obsidian-maturity-audit/SKILL.md",
-      "sha256": "c02c8458040f5599b32104a9394cb8dcff3946b7121a212fcfa4a1e2e8d5fc28"
+      "sha256": "6e7258c37414406228ebc13bb6bec1e3d14b9c5e6335af121ad67789c17c3729"
     },
     {
       "path": "skills/obsidian-maturity-audit/agents/openai.yaml",
@@ -127,7 +143,7 @@
     },
     {
       "path": "skills/obsidian-query/SKILL.md",
-      "sha256": "9cb9b4f958c6cc3cb561fedaa343b756aa758dc348bf9a7de47d28c3b54473a2"
+      "sha256": "0953650f1e81db254c6b9bd648bd83a76f2fc6d4e7bca1d2b05eb9660383bff4"
     },
     {
       "path": "skills/obsidian-query/agents/openai.yaml",
